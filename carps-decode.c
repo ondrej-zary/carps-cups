@@ -454,19 +454,10 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						} else
 							printf("!!!!!!!!\n");
 						break;
-					case 0b01111: //////// only present after LAST BYTES used???
-						bits = get_bits(&data, &len, &bitpos, 2);
-						printf("?????? ");
-						switch (bits) {
-						case 0b10:
-							count = decode_repeat_stream(&data, &len, &bitpos, 384);
-							printf("%d repeating bytes\n", count);
-							output_bytes_repeat(count, &lastbyte, fout);
-							break;
-						default:
-							printf("!!!!!!!!!!!!!!!!!\n");
-							break;
-						}
+					case 0b01111:
+						go_backward(4, &data, &len, &bitpos);
+						printf("?????? 384 repeating bytes\n");
+						output_bytes_repeat(384, &lastbyte, fout);
 						break;
 					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 5));
