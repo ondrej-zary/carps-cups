@@ -398,7 +398,12 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					bits = get_bits(&data, &len, &bitpos, 4);
 					if (bits == 0b1110) {
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d repeating bytes\n", count);
+						printf("%d repeating bytes (+128)\n", count);
+						output_bytes_repeat(count, &lastbyte, fout);
+					} else if (bits == 0b0111) {
+						go_backward(3, &data, &len, &bitpos);
+						count = decode_repeat_stream(&data, &len, &bitpos, 128);
+						printf("%d repeating bytes (+128 #2)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
 					} else
 						printf("invalid bits 0b%s\n", bin_n(bits, 4));
@@ -458,6 +463,12 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						go_backward(4, &data, &len, &bitpos);
 						printf("?????? 384 repeating bytes\n");
 						output_bytes_repeat(384, &lastbyte, fout);
+						break;
+					case 0b10111:
+						go_backward(3, &data, &len, &bitpos);
+						count = decode_repeat_stream(&data, &len, &bitpos, 256);
+						printf("%d bytes from previous line (+256)??????\n", count);
+						output_previous(3, count, fout);
 						break;
 					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 5));
