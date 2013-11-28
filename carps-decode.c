@@ -407,15 +407,18 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					break;
 				case 0b01:
 					bits = get_bits(&data, &len, &bitpos, 5);
-					if (bits == 0b11110) {
+					switch (bits) {
+					case 0b11110:
 						count = decode_repeat_stream(&data, &len, &bitpos, 256);
 						printf("%d repeating bytes\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
-					} else if (bits == 0b01110) {
+						break;
+					case 0b01110:
 						count = decode_repeat_stream(&data, &len, &bitpos, 384);
 						printf("%d repeating bytes\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
-					} else if (bits == 0b00111) {
+						break;
+					case 0b00111:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 384);
 /*						bits = get_bits(&data, &len, &bitpos, 2);
@@ -438,7 +441,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						}*/
 						printf("%d bytes from previous line (4,5,7bit)\n", count);
 						output_previous(3, count, fout);
-					} else if (bits == 0b01100) {
+						break;
+					case 0b01100:
 						bits = get_bits(&data, &len, &bitpos, 6);
 						if (bits == 0b111110) {
 							bits = get_bits(&data, &len, &bitpos, 6);
@@ -449,7 +453,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							output_previous(3, count, fout);
 						} else
 							printf("!!!!!!!!\n");
-					} else if (bits == 0b01111) {//////// only present after LAST BYTES used???
+						break;
+					case 0b01111: //////// only present after LAST BYTES used???
 						bits = get_bits(&data, &len, &bitpos, 2);
 						printf("?????? ");
 						switch (bits) {
@@ -462,8 +467,10 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							printf("!!!!!!!!!!!!!!!!!\n");
 							break;
 						}
-					} else
+						break;
+					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 5));
+					}
 					break;
 				case 0b10:
 					bits = get_bits(&data, &len, &bitpos, 6);
