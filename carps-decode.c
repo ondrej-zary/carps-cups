@@ -152,7 +152,7 @@ int decode_repeat_stream(u8 **data, u16 *len, u8 *bitpos, int base) {
 				if (bits) {
 					bits = get_bits(data, len, bitpos, 1);
 					if (bits) {
-						printf("more than 5 ones = %d bytes??? ", base + 0);
+						printf("%d bytes ", base);
 						return base;
 					} else {//111110
 						bits = get_bits(data, len, bitpos, 6);
@@ -185,7 +185,6 @@ int decode_repeat_stream(u8 **data, u16 *len, u8 *bitpos, int base) {
 
 #define DECODE_BUFSIZE 16
 u8 lastbyte = 0;//////remove
-u8 last_repeated = 0;
 u8 last_lines[8][600], cur_line[600];
 //, last_line2[600], last_line3[600], last_line4[600], last_line5[600], last_line6[600], last_line7[600], last_line8[600];
 int out_bytes = 0;
@@ -248,7 +247,6 @@ void output_bytes_repeat(int count, u8 *buf, FILE *fout) {
 	}
 	printf("\n");
 	lastbyte = cur_line[line_pos - 1];
-	last_repeated = lastbyte;
 	out_bytes += count;
 	if (line_pos > line_len)
 		next_line();
@@ -263,6 +261,7 @@ void output_bytes_last2(int count, u8 *buf, FILE *fout) {
 	}
 	printf("\n");
 	out_bytes += count;
+	lastbyte = cur_line[line_pos - 1];
 	if (line_pos > line_len)
 		next_line();
 }
@@ -290,7 +289,6 @@ void output_previous(int line, int count, FILE *fout) {
 	out_bytes += count;
 	line_pos += count;
 	lastbyte = cur_line[line_pos - 1];
-	last_repeated = lastbyte;
 	if (line_pos > line_len)
 		next_line();
 }
@@ -409,6 +407,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					bits = get_bits(&data, &len, &bitpos, 5);
 					switch (bits) {
 					case 0b11110:
+//BAD!!						go_backward(6, &data, &len, &bitpos);
+//						count = decode_repeat_stream(&data, &len, &bitpos, 192);
 						count = decode_repeat_stream(&data, &len, &bitpos, 256);
 						printf("%d repeating bytes\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
@@ -476,8 +476,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					bits = get_bits(&data, &len, &bitpos, 6);
 					if (bits == 0b111110) {
 						count = decode_repeat_stream(&data, &len, &bitpos, 512);
-						printf("+512 ????????????????????????????????????");
-						printf("%d repeating bytes\n", count);
+						printf("%d repeating bytes (+512)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
 					} else if (bits == 0b110111 || bits == 0b110110 || bits == 0b110100 || bits == 0b110101 || bits == 0b110010 || bits == 0b110011 || bits == 0b110000 || bits == 0b110001) {
 						go_backward(3, &data, &len, &bitpos);
@@ -546,7 +545,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				printf("%d last bytes (by 2)\n", count);
 				output_bytes_last2(count, &lastbyte, fout);
 			} else {
-				printf("%d repeating bytes\n", count);
+				printf("%d repeating bytes (by 1)\n", count);
 				output_bytes_repeat(count, &lastbyte, fout);
 			}
 			break;
