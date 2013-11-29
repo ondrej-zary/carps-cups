@@ -434,63 +434,41 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					}
 					break;
 				case 0b01:
-					bits = get_bits(&data, &len, &bitpos, 5);
+					bits = get_bits(&data, &len, &bitpos, 1);
+					int base = bits ? 256 : 384;
+					bits = get_bits(&data, &len, &bitpos, 4);
 					switch (bits) {
-					case 0b00111:
-					case 0b00110:
-					case 0b00010:
-					case 0b00000:
-					case 0b00100:
-					case 0b00101:
-					case 0b00011:
+					case 0b0111:
+					case 0b0110:
+					case 0b0010:
+					case 0b0000:
+					case 0b0100:
+					case 0b0101:
+					case 0b0011:
 						go_backward(3, &data, &len, &bitpos);
-						count = decode_repeat_stream(&data, &len, &bitpos, 384);
-						printf("%d bytes from previous line (+384)??????\n", count);
+						count = decode_repeat_stream(&data, &len, &bitpos, base);
+						printf("%d bytes from previous line (+%d)??????\n", count, base);
 						output_previous(3, count, fout);
 						break;
-					case 0b01100:
-						count = decode_repeat_stream(&data, &len, &bitpos, 384);
-						printf("%d bytes from previous line (+384 w/flag)\n", count);
+					case 0b1100:
+						count = decode_repeat_stream(&data, &len, &bitpos, base);
+						printf("%d bytes from previous line (+%d w/flag)\n", count, base);
 						prev8_flag = !prev8_flag;
 						printf("prev8_flag := %d\n", prev8_flag);
 						output_previous(3, count, fout);
 						break;
-					case 0b01110:
-						count = decode_repeat_stream(&data, &len, &bitpos, 384);
-						printf("%d repeating bytes (+384)\n", count);
+					case 0b1110:
+						count = decode_repeat_stream(&data, &len, &bitpos, base);
+						printf("%d repeating bytes (+%d)\n", count, base);
 						output_bytes_repeat(count, &lastbyte, fout);
 						break;
-					case 0b01111:
+					case 0b1111:
 						go_backward(4, &data, &len, &bitpos);
-						printf("?????? 384 repeating bytes\n");
-						output_bytes_repeat(384, &lastbyte, fout);
-						break;
-					case 0b10111:
-					case 0b10110:
-					case 0b10100:
-					case 0b10101:
-					case 0b10010:
-					case 0b10011:
-					case 0b10000:
-						go_backward(3, &data, &len, &bitpos);
-						count = decode_repeat_stream(&data, &len, &bitpos, 256);
-						printf("%d bytes from previous line (+256)??????\n", count);
-						output_previous(3, count, fout);
-						break;
-					case 0b11100:
-						count = decode_repeat_stream(&data, &len, &bitpos, 256);
-						printf("%d bytes from previous line (+256 w/flag)??????\n", count);
-						prev8_flag = !prev8_flag;
-						printf("prev8_flag := %d\n", prev8_flag);
-						output_previous(3, count, fout);
-						break;
-					case 0b11110:
-						count = decode_repeat_stream(&data, &len, &bitpos, 256);
-						printf("%d repeating bytes (+256)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
+						printf("?????? %d repeating bytes\n", base);
+						output_bytes_repeat(base, &lastbyte, fout);
 						break;
 					default:
-						printf("invalid bits 0b%s\n", bin_n(bits, 5));
+						printf("invalid bits 0b%s\n", bin_n(bits, 4));
 					}
 					break;
 				case 0b10:
