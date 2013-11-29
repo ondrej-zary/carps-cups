@@ -536,6 +536,12 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						count = decode_repeat_stream(&data, &len, &bitpos, 512);
 						printf("%d bytes from previous line [3] (+512 w/flag)\n", count);
 						output_previous(3, count, fout);
+					} else if (bits == 0b111111) {
+						bits = get_bits(&data, &len, &bitpos, 2);
+						printf("WTF bits 0b%s\n", bin_n(bits, 2));
+						count = decode_repeat_stream(&data, &len, &bitpos, 512);
+						printf("%d repeating bytes (+512 #2)\n", count);
+						output_bytes_repeat(count, &lastbyte, fout);
 					} else
 						printf("invalid bits 0b%s ", bin_n(bits, 6));
 					break;
