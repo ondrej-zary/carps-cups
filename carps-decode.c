@@ -396,17 +396,21 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				switch (bits) {
 				case 0b00:
 					bits = get_bits(&data, &len, &bitpos, 4);
-					if (bits == 0b1110) {
+					switch (bits) {
+					case 0b1110:
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
 						printf("%d repeating bytes (+128)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
-					} else if (bits == 0b0111) {
+						break;
+					case 0b0111:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
 						printf("%d repeating bytes (+128 #2)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
-					} else
+						break;
+					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 4));
+					}
 					break;
 				case 0b01:
 					bits = get_bits(&data, &len, &bitpos, 5);
