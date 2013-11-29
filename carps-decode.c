@@ -420,6 +420,15 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						printf("%d bytes from previous line (+128)\n", count);
 						output_previous(3, count, fout);
 						break;
+					case 0b1111://///////////////flag?
+						bits = get_bits(&data, &len, &bitpos, 2);
+						printf("WTF bits 0b%s\n", bin_n(bits, 2));
+						count = decode_repeat_stream(&data, &len, &bitpos, 128);
+						printf("%d repeating bytes (+128 #2 w/flag)\n", count);
+						output_bytes_repeat(count, &lastbyte, fout);
+						twobyte_flag = !twobyte_flag;
+						printf("twobyte_flag := %d\n", twobyte_flag);
+						break;
 					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 4));
 					}
