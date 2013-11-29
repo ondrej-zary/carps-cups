@@ -507,6 +507,17 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						printf("prev8_flag := %d\n", prev8_flag);
 						output_previous(3, count, fout);
 						break;
+					case 0b00110:
+					case 0b00010:
+					case 0b00000:
+					case 0b00100:
+					case 0b00101:
+					case 0b00011:
+						go_backward(3, &data, &len, &bitpos);
+						count = decode_repeat_stream(&data, &len, &bitpos, 384);
+						printf("%d bytes from previous line (+384)??????\n", count);
+						output_previous(3, count, fout);
+						break;
 					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 5));
 					}
