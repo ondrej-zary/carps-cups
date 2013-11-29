@@ -397,16 +397,19 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				switch (bits) {
 				case 0b00:
 					base = 128;
+					printf("PREFIX %d\n", base);
 					break;
 				case 0b01:
 					bits = get_bits(&data, &len, &bitpos, 1);
 					base = bits ? 256 : 384;
+					printf("PREFIX %d\n", base);
 					break;
 				case 0b10:
 					bits = get_bits(&data, &len, &bitpos, 2);
 					if (bits != 0b11)
 						printf("invalid bits 0b%s\n", bin_n(bits, 2));
 					base = 512;
+					printf("PREFIX %d\n", base);
 					break;
 				default:
 					printf("invalid bits 0b%s\n", bin_n(bits, 2));
