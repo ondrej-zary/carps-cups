@@ -465,9 +465,21 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						output_bytes_repeat(384, &lastbyte, fout);
 						break;
 					case 0b10111:
+					case 0b10110:
+					case 0b10100:
+					case 0b10101:
+					case 0b10010:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 256);
 						printf("%d bytes from previous line (+256)??????\n", count);
+						output_previous(3, count, fout);
+						break;
+					case 0b11100:////flag????????////////////////////////////////////
+//						go_backward(7, &data, &len, &bitpos);
+						count = decode_repeat_stream(&data, &len, &bitpos, 256);
+						printf("%d bytes from previous line (+256 w/flag)??????\n", count);
+						prev8_flag = !prev8_flag;
+						printf("prev8_flag := %d\n", prev8_flag);
 						output_previous(3, count, fout);
 						break;
 					default:
