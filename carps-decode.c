@@ -414,6 +414,10 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						break;
 					case 0b0111:
 					case 0b0011:
+					case 0b0101:
+					case 0b0110:
+					case 0b0100:
+					case 0b0001:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
 						printf("%d bytes from previous line (+128)\n", count);
@@ -484,6 +488,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					case 0b10100:
 					case 0b10101:
 					case 0b10010:
+					case 0b10011:
+					case 0b10000:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 256);
 						printf("%d bytes from previous line (+256)??????\n", count);
