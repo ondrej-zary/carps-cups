@@ -403,10 +403,11 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						output_bytes_repeat(count, &lastbyte, fout);
 						break;
 					case 0b0111:
+					case 0b0011:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d repeating bytes (+128 #2)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
+						printf("%d bytes from previous line (+128)\n", count);
+						output_previous(3, count, fout);
 						break;
 					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 4));
