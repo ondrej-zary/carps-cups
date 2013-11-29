@@ -468,7 +468,14 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						if (bits == 0b111110) {
 							bits = get_bits(&data, &len, &bitpos, 6);
 							count =  448 + (~bits & 0b111111);
-							printf("WTF???? %d bytes from previous line (+448)\n", count);
+							printf("WTF???? %d bytes from previous line (+448 w/flag)\n", count);
+							prev8_flag = !prev8_flag;
+							printf("prev8_flag := %d\n", prev8_flag);
+							output_previous(3, count, fout);
+						} else if (bits == 0b110110) {
+							go_backward(6, &data, &len, &bitpos);
+							count = decode_repeat_stream(&data, &len, &bitpos, 384);
+							printf("WTF???? %d bytes from previous line (+384 w/flag)\n", count);
 							prev8_flag = !prev8_flag;
 							printf("prev8_flag := %d\n", prev8_flag);
 							output_previous(3, count, fout);
