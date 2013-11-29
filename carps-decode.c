@@ -501,29 +501,42 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					break;
 				case 0b10:
 					bits = get_bits(&data, &len, &bitpos, 6);
-					if (bits == 0b111110) {
+					switch (bits) {
+					case 0b111110:
 						count = decode_repeat_stream(&data, &len, &bitpos, 512);
 						printf("%d repeating bytes (+512)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
-					} else if (bits == 0b110111 || bits == 0b110110 || bits == 0b110100 || bits == 0b110101 || bits == 0b110010 || bits == 0b110011 || bits == 0b110000 || bits == 0b110001) {
+						break;
+					case 0b110111:
+					case 0b110110:
+					case 0b110100:
+					case 0b110101:
+					case 0b110010:
+					case 0b110011:
+					case 0b110000:
+					case 0b110001:
 						go_backward(3, &data, &len, &bitpos);
 						count = decode_repeat_stream(&data, &len, &bitpos, 512);
 						printf("%d bytes from previous line [3] (+512)\n", count);
 						output_previous(3, count, fout);
-					} else if (bits == 0b111100) {
+						break;
+					case 0b111100:
 						prev8_flag = !prev8_flag;
 						printf("prev8_flag := %d\n", prev8_flag);
 						count = decode_repeat_stream(&data, &len, &bitpos, 512);
 						printf("%d bytes from previous line [3] (+512 w/flag)\n", count);
 						output_previous(3, count, fout);
-					} else if (bits == 0b111111) {
+						break;
+					case 0b111111:
 						bits = get_bits(&data, &len, &bitpos, 2);
 						printf("WTF bits 0b%s\n", bin_n(bits, 2));
 						count = decode_repeat_stream(&data, &len, &bitpos, 512);
 						printf("%d repeating bytes (+512 #2)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
-					} else
+						break;
+					default:
 						printf("invalid bits 0b%s ", bin_n(bits, 6));
+					}
 					break;
 				default:
 					printf("invalid bits 0b%s\n", bin_n(bits, 2));
