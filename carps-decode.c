@@ -605,16 +605,10 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 			printf("[%d] byte from dictionary\n", (~bits & 0b1111));
 			output_byte(decode_buf[(~bits & 0b1111)], decode_buf, fout);
 			break;
-		/* ????? */
-		case 0b0101:
-			go_backward(2, &data, &len, &bitpos);
-			count = decode_repeat_stream(&data, &len, &bitpos, 2);
-			printf("%d bytes from previous line (3bit #2)\n", count);
-			output_previous(3, count, fout);
-			break;
 		case 0b0010:
 		case 0b0011:
 		case 0b0100:
+		case 0b0101:
 		case 0b0110:
 		case 0b0111:
 			go_backward(3, &data, &len, &bitpos);
