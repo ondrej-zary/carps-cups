@@ -395,53 +395,21 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				bits = get_bits(&data, &len, &bitpos, 2);
 				switch (bits) {
 				case 0b00:
-					bits = get_bits(&data, &len, &bitpos, 4);
-					switch (bits) {
-					case 0b0111:
-					case 0b0011:
-					case 0b0101:
-					case 0b0110:
-					case 0b0100:
-					case 0b0001:
-						go_backward(3, &data, &len, &bitpos);
-						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d bytes from previous line (+128)\n", count);
-						output_previous(3, count, fout);
-						break;
-					case 0b1100:
-						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d bytes from previous line (+128 w/flag)\n", count);
-						prev8_flag = !prev8_flag;
-						printf("prev8_flag := %d\n", prev8_flag);
-						output_previous(3, count, fout);
-						break;
-					case 0b1110:
-						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d repeating bytes (+128)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
-						break;
-					case 0b1111://///////////////flag?
-						bits = get_bits(&data, &len, &bitpos, 2);
-						printf("WTF bits 0b%s\n", bin_n(bits, 2));
-						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d repeating bytes (+128 #2 w/flag)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
-						twobyte_flag = !twobyte_flag;
-						printf("twobyte_flag := %d\n", twobyte_flag);
-						break;
-					default:
-						printf("invalid bits 0b%s\n", bin_n(bits, 4));
-					}
-					break;
 				case 0b01:
-					bits = get_bits(&data, &len, &bitpos, 1);
-					int base = bits ? 256 : 384;
+					bits = bits;
+					int base;
+					if (bits == 0b01) {
+						bits = get_bits(&data, &len, &bitpos, 1);
+						base = bits ? 256 : 384;
+					} else
+						base = 128;
 					bits = get_bits(&data, &len, &bitpos, 4);
 					switch (bits) {
 					case 0b0111:
 					case 0b0110:
 					case 0b0010:
 					case 0b0000:
+					case 0b0001:
 					case 0b0100:
 					case 0b0101:
 					case 0b0011:
