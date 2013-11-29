@@ -397,18 +397,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				case 0b00:
 					bits = get_bits(&data, &len, &bitpos, 4);
 					switch (bits) {
-					case 0b1110:
-						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d repeating bytes (+128)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
-						break;
-					case 0b1100:
-						count = decode_repeat_stream(&data, &len, &bitpos, 128);
-						printf("%d bytes from previous line (+128 w/flag)\n", count);
-						prev8_flag = !prev8_flag;
-						printf("prev8_flag := %d\n", prev8_flag);
-						output_previous(3, count, fout);
-						break;
 					case 0b0111:
 					case 0b0011:
 					case 0b0101:
@@ -419,6 +407,18 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
 						printf("%d bytes from previous line (+128)\n", count);
 						output_previous(3, count, fout);
+						break;
+					case 0b1100:
+						count = decode_repeat_stream(&data, &len, &bitpos, 128);
+						printf("%d bytes from previous line (+128 w/flag)\n", count);
+						prev8_flag = !prev8_flag;
+						printf("prev8_flag := %d\n", prev8_flag);
+						output_previous(3, count, fout);
+						break;
+					case 0b1110:
+						count = decode_repeat_stream(&data, &len, &bitpos, 128);
+						printf("%d repeating bytes (+128)\n", count);
+						output_bytes_repeat(count, &lastbyte, fout);
 						break;
 					case 0b1111://///////////////flag?
 						bits = get_bits(&data, &len, &bitpos, 2);
@@ -589,10 +589,11 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 			output_previous(3, count, fout);
 			break;
 		case 0b1100:
-			go_backward(1, &data, &len, &bitpos);
-			printf("PREV8 FLAG???\n");
+			count = decode_repeat_stream(&data, &len, &bitpos, 0);
+			printf("%d bytes from previous line (+0 w/flag)\n", count);
 			prev8_flag = !prev8_flag;
 			printf("prev8_flag := %d\n", prev8_flag);
+			output_previous(3, count, fout);
 			break;
 		default:
 			printf("unknown prefix 0b%s\n", bin_n(bits, 4));
