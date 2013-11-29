@@ -297,6 +297,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	bool in_escape = false;
 	int i;
 	int count;
+	int base = 0;
 	u8 decode_buf[DECODE_BUFSIZE];
 //	u8 decode_bufpos = 0;
 	memset(decode_buf, 0xaa, DECODE_BUFSIZE);
@@ -393,7 +394,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				break;
 			case 0b1100:
 				bits = get_bits(&data, &len, &bitpos, 2);
-				int base;
 				switch (bits) {
 				case 0b00:
 					base = 128;
@@ -407,43 +407,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					if (bits != 0b11)
 						printf("invalid bits 0b%s\n", bin_n(bits, 2));
 					base = 512;
+					break;
 				default:
 					printf("invalid bits 0b%s\n", bin_n(bits, 2));
-				}
-				bits = get_bits(&data, &len, &bitpos, 4);
-				switch (bits) {
-				case 0b0111:
-				case 0b0110:
-				case 0b0010:
-				case 0b0000:
-				case 0b0001:
-				case 0b0100:
-				case 0b0101:
-				case 0b0011:
-					go_backward(3, &data, &len, &bitpos);
-					count = decode_repeat_stream(&data, &len, &bitpos, base);
-					printf("%d bytes from previous line (+%d)??????\n", count, base);
-					output_previous(3, count, fout);
-					break;
-				case 0b1100:
-					count = decode_repeat_stream(&data, &len, &bitpos, base);
-					printf("%d bytes from previous line (+%d w/flag)\n", count, base);
-					prev8_flag = !prev8_flag;
-					printf("prev8_flag := %d\n", prev8_flag);
-					output_previous(3, count, fout);
-					break;
-				case 0b1110:
-					count = decode_repeat_stream(&data, &len, &bitpos, base);
-					printf("%d repeating bytes (+%d)\n", count, base);
-					output_bytes_repeat(count, &lastbyte, fout);
-					break;
-				case 0b1111:
-					go_backward(4, &data, &len, &bitpos);
-					printf("?????? %d repeating bytes\n", base);
-					output_bytes_repeat(base, &lastbyte, fout);
-					break;
-				default:
-					printf("invalid bits 0b%s\n", bin_n(bits, 4));
 				}
 				break;
 			case 0b1011:
@@ -488,16 +454,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 			printf("byte immediate 0b%s\n", bin(bits));
 			output_byte(bits, decode_buf, fout);
 			break;
-		case 0b1110:
-			count = decode_repeat_stream(&data, &len, &bitpos, 0);
-			if (twobyte_flag) {
-				printf("%d last bytes (by 2)\n", count);
-				output_bytes_last2(count, &lastbyte, fout);
-			} else {
-				printf("%d repeating bytes (by 1)\n", count);
-				output_bytes_repeat(count, &lastbyte, fout);
-			}
-			break;
 		/* DICTIONARY */
 		case 0b1000:
 		case 0b1001:
@@ -508,6 +464,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 			printf("[%d] byte from dictionary\n", (~bits & 0b1111));
 			output_byte(decode_buf[(~bits & 0b1111)], decode_buf, fout);
 			break;
+		case 0b0000:
+		case 0b0001:
 		case 0b0010:
 		case 0b0011:
 		case 0b0100:
@@ -515,16 +473,29 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		case 0b0110:
 		case 0b0111:
 			go_backward(3, &data, &len, &bitpos);
-			count = decode_repeat_stream(&data, &len, &bitpos, 0);
-			printf("%d bytes from previous line (short)\n", count);
+			count = decode_repeat_stream(&data, &len, &bitpos, base);
+			printf("%d bytes from previous line (+%d)\n", count, base);
 			output_previous(3, count, fout);
+			base = 0;
 			break;
 		case 0b1100:
-			count = decode_repeat_stream(&data, &len, &bitpos, 0);
-			printf("%d bytes from previous line (+0 w/flag)\n", count);
+			count = decode_repeat_stream(&data, &len, &bitpos, base);
+			printf("%d bytes from previous line (+%d w/flag)\n", count, base);
 			prev8_flag = !prev8_flag;
 			printf("prev8_flag := %d\n", prev8_flag);
 			output_previous(3, count, fout);
+			base = 0;
+			break;
+		case 0b1110:
+			count = decode_repeat_stream(&data, &len, &bitpos, base);
+			if (twobyte_flag) {
+				printf("%d last bytes (by 2, +%d)\n", count, base);
+				output_bytes_last2(count, &lastbyte, fout);
+			} else {
+				printf("%d repeating bytes (by 1, +%d)\n", count, base);
+				output_bytes_repeat(count, &lastbyte, fout);
+			}
+			base = 0;
 			break;
 		default:
 			printf("unknown prefix 0b%s\n", bin_n(bits, 4));
