@@ -396,13 +396,21 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				switch (bits) {
 				case 0b00:
 				case 0b01:
+				case 0b10:
 					bits = bits;
 					int base;
 					if (bits == 0b01) {
 						bits = get_bits(&data, &len, &bitpos, 1);
 						base = bits ? 256 : 384;
-					} else
+					} else if (bits == 0b10) {
+						bits = get_bits(&data, &len, &bitpos, 2);
+						if (bits != 0b11)
+							printf("invalid bits 0b%s\n", bin_n(bits, 2));
+						base = 512;
+					} else if (bits == 0b00)
 						base = 128;
+					else
+						printf("invalid bits 0b%s\n", bin_n(bits, 2));
 					bits = get_bits(&data, &len, &bitpos, 4);
 					switch (bits) {
 					case 0b0111:
@@ -437,45 +445,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						break;
 					default:
 						printf("invalid bits 0b%s\n", bin_n(bits, 4));
-					}
-					break;
-				case 0b10:
-					bits = get_bits(&data, &len, &bitpos, 6);
-					switch (bits) {
-					case 0b111110:
-						count = decode_repeat_stream(&data, &len, &bitpos, 512);
-						printf("%d repeating bytes (+512)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
-						break;
-					case 0b110111:
-					case 0b110110:
-					case 0b110100:
-					case 0b110101:
-					case 0b110010:
-					case 0b110011:
-					case 0b110000:
-					case 0b110001:
-						go_backward(3, &data, &len, &bitpos);
-						count = decode_repeat_stream(&data, &len, &bitpos, 512);
-						printf("%d bytes from previous line [3] (+512)\n", count);
-						output_previous(3, count, fout);
-						break;
-					case 0b111100:
-						prev8_flag = !prev8_flag;
-						printf("prev8_flag := %d\n", prev8_flag);
-						count = decode_repeat_stream(&data, &len, &bitpos, 512);
-						printf("%d bytes from previous line [3] (+512 w/flag)\n", count);
-						output_previous(3, count, fout);
-						break;
-					case 0b111111:
-						bits = get_bits(&data, &len, &bitpos, 2);
-						printf("WTF bits 0b%s\n", bin_n(bits, 2));
-						count = decode_repeat_stream(&data, &len, &bitpos, 512);
-						printf("%d repeating bytes (+512 #2)\n", count);
-						output_bytes_repeat(count, &lastbyte, fout);
-						break;
-					default:
-						printf("invalid bits 0b%s ", bin_n(bits, 6));
 					}
 					break;
 				default:
