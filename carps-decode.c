@@ -402,15 +402,12 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						printf("%d repeating bytes (+128)\n", count);
 						output_bytes_repeat(count, &lastbyte, fout);
 						break;
-					case 0b1100:////////////flag??????
-						go_backward(3, &data, &len, &bitpos);
+					case 0b1100:
 						count = decode_repeat_stream(&data, &len, &bitpos, 128);
 						printf("%d bytes from previous line (+128 w/flag)\n", count);
 						prev8_flag = !prev8_flag;
 						printf("prev8_flag := %d\n", prev8_flag);
 						output_previous(3, count, fout);
-						bits = get_bits(&data, &len, &bitpos, 3);///////////
-						printf("WTF bits 0b%s\n", bin_n(bits, 3));
 						break;
 					case 0b0111:
 					case 0b0011:
