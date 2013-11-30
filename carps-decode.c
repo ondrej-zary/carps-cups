@@ -418,6 +418,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 			case 0b1011:
 			case 0b1010:
 			case 0b1001:
+			case 0b1000:
 				go_backward(6, &data, &len, &bitpos);
 				printf("TWOBYTE FLAG\n");
 				twobyte_flag = !twobyte_flag;
