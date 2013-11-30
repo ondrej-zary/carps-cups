@@ -438,7 +438,10 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				out_bytes += count;
 				line_pos += count;
 				lastbyte = cur_line[line_pos - 1];
-				
+
+				if (line_pos > line_len)
+					next_line();
+
 				printf("%d bytes from this line [@-80]\n", count);
 				break;
 			case 0b1110:
