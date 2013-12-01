@@ -192,7 +192,6 @@ u16 line_num = 0;
 u16 line_pos;
 u16 line_len = 591;
 bool prev8_flag = false;
-bool twobyte_flag = false;
 
 void next_line(void) {
 	memcpy(last_lines[7], last_lines[6], line_len);
@@ -284,6 +283,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	int count;
 	int base = 0;
 	u8 dictionary[DICT_SIZE];
+	bool twobyte_flag = false;
+
 	memset(dictionary, 0xaa, DICT_SIZE);
 	
 	if (data[0] != 0x01)
@@ -391,7 +392,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							case 0b10:
 								printf("block end marker??? ");
 								prev8_flag = 0;
-								twobyte_flag = 0;
 								printf("\n");
 								return 0;
 							default:
@@ -399,7 +399,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							}
 						} else { /* 111110 */
 							go_backward(4, &data, &len, &bitpos);
-							printf("TWOBYTE FLAG\n");
 							twobyte_flag = !twobyte_flag;
 							printf("twobyte_flag := %d\n", twobyte_flag);
 						}
