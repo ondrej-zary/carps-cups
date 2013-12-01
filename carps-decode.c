@@ -128,55 +128,34 @@ void go_backward(int num_bits, u8 **data, u16 *len, u8 *bitpos) {
 	}
 }
 
-int count_ones(u8 **data, u16 *len, u8 *bitpos) {
+int count_ones(int max, u8 **data, u16 *len, u8 *bitpos) {
 	int i = 0;
 
-	while (get_bits(data, len, bitpos, 1))
+	while (i < max && get_bits(data, len, bitpos, 1))
 		i++;
 
 	return i;
 }
 
+#define MASK(n)	((1 << n) - 1)
+
 /* decode a number beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
 int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
-	int num_bits = 0;
-	u8 bits;// = get_bits(data, len, bitpos, 2);
-	u8 mask;
+	int num_bits;
 	printf("decode_number base=%d ", base);
 
-	if (get_bits(data, len, bitpos, 1)) {
-		if (get_bits(data, len, bitpos, 1)) {
-			if (get_bits(data, len, bitpos, 1)) {
-				if (get_bits(data, len, bitpos, 1)) {
-					if (get_bits(data, len, bitpos, 1)) {
-						if (get_bits(data, len, bitpos, 1)) {
-							return base;
-						} else { /* 111110 */
-							num_bits = 6;
-						}
-					} else { /* 11110 */
-						num_bits = 5;
-					}
-				} else { /* 1110 */
-					num_bits = 4;
-				}
-			} else { /* 110 */
-				num_bits = 3;
-			}
-		} else { /* 10 */
-			num_bits = 2;
-		}
-	} else {
-		if (get_bits(data, len, bitpos, 1)) {
+	num_bits = count_ones(6, data, len, bitpos) + 1;
+	if (num_bits == 7)
+		return base;
+
+	if (num_bits == 1) {
+		if (get_bits(data, len, bitpos, 1))
 			num_bits = 1;
-		} else {
+		else
 			return base + 1;
-		}
 	}
 
-	bits = get_bits(data, len, bitpos, num_bits);
-	mask = (1 << num_bits) - 1;
-	return base + (1 << num_bits) + (~bits & mask);
+	return base + (1 << num_bits) + (~get_bits(data, len, bitpos, num_bits) & MASK(num_bits));
 }
 
 #define DICT_SIZE 16
