@@ -128,9 +128,20 @@ void go_backward(int num_bits, u8 **data, u16 *len, u8 *bitpos) {
 	}
 }
 
+int count_ones(u8 **data, u16 *len, u8 *bitpos) {
+	int i = 0;
+
+	while (get_bits(data, len, bitpos, 1))
+		i++;
+
+	return i;
+}
+
 /* decode a number beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
 int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
+	int num_bits = 0;
 	u8 bits;// = get_bits(data, len, bitpos, 2);
+	u8 mask;
 	printf("decode_number base=%d ", base);
 
 	if (get_bits(data, len, bitpos, 1)) {
@@ -139,45 +150,33 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
 				if (get_bits(data, len, bitpos, 1)) {
 					if (get_bits(data, len, bitpos, 1)) {
 						if (get_bits(data, len, bitpos, 1)) {
-							printf("=%d ", base);
 							return base;
 						} else { /* 111110 */
-							bits = get_bits(data, len, bitpos, 6);
-							printf("=%d ", base+64+(~bits & 0b111111));
-							return base + 64 + (~bits & 0b111111);
+							num_bits = 6;
 						}
 					} else { /* 11110 */
-						bits = get_bits(data, len, bitpos, 5);
-						printf("=%d ", base+32+(~bits & 0b11111));
-						return base + 32 + (~bits & 0b11111);
+						num_bits = 5;
 					}
 				} else { /* 1110 */
-					bits = get_bits(data, len, bitpos, 4);
-					printf("=%d ", base+16+(~bits & 0b1111));
-					return base + 16 + (~bits & 0b1111);
+					num_bits = 4;
 				}
 			} else { /* 110 */
-				bits = get_bits(data, len, bitpos, 3);
-				printf("=%d ", base+8+(~bits & 0b111));
-				return base + 8 + (~bits & 0b111);
+				num_bits = 3;
 			}
 		} else { /* 10 */
-			bits = get_bits(data, len, bitpos, 2);
-			printf("=%d ", base + 4 + (~bits & 0b11));
-			return base + 4 + (~bits & 0b11);
+			num_bits = 2;
 		}
 	} else {
 		if (get_bits(data, len, bitpos, 1)) {
-			bits = get_bits(data, len, bitpos, 1);
-			printf("=%d ", base + 2 + (~bits & 0b1));
-			return base + 2 + (~bits & 0b1);
+			num_bits = 1;
 		} else {
-			printf("=%d ", base + 1);
 			return base + 1;
 		}
 	}
 
-	return 0;
+	bits = get_bits(data, len, bitpos, num_bits);
+	mask = (1 << num_bits) - 1;
+	return base + (1 << num_bits) + (~bits & mask);
 }
 
 #define DICT_SIZE 16
