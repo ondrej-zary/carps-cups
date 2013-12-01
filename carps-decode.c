@@ -203,15 +203,7 @@ void next_line(void) {
 	line_num++;
 }
 
-void buffer_push(u8 *buf, u8 data) {
-//	printf("buffer_push %x\n", data);
-	memmove(buf + 1, buf, DICT_SIZE - 1);
-	buf[0] = data;
-}
-
 void output_byte(u8 byte, u8 *buf, FILE *fout) {
-//	int present = 0;
-
 	printf("DICTIONARY=");
 	for (int j = 0; j < DICT_SIZE; j++)
 		printf("%02X ", buf[j]);
@@ -222,7 +214,8 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 			memmove(buf + i, buf + i + 1, DICT_SIZE - i);
 			break;
 		}
-	buffer_push(buf, byte);
+	memmove(buf + 1, buf, DICT_SIZE - 1);
+	buf[0] = byte;
 	fwrite(&byte, 1, 1, fout);
 	cur_line[line_pos] = byte;
 	printf("BYTE=%x\n", byte);
