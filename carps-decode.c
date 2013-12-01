@@ -128,19 +128,19 @@ void go_backward(int num_bits, u8 **data, u16 *len, u8 *bitpos) {
 	}
 }
 
-/* decode repeat stream beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
-int decode_repeat_stream(u8 **data, u16 *len, u8 *bitpos, int base) {
+/* decode a number beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
+int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
 	u8 bits = get_bits(data, len, bitpos, 2);
-	printf("decode_repeat_stream base=%d ", base);
+	printf("decode_number base=%d ", base);
 	switch (bits) {
 	case 0b01:
 		bits = get_bits(data, len, bitpos, 1);
-		printf("%d bytes ", base + 2 + (~bits & 0b1));
+		printf("=%d ", base + 2 + (~bits & 0b1));
 		return base + 2 + (~bits & 0b1);
 		break;
 	case 0b10:
 		bits = get_bits(data, len, bitpos, 2);
-		printf("%d bytes ", base + 4 + (~bits & 0b11));
+		printf("=%d ", base + 4 + (~bits & 0b11));
 		return base + 4 + (~bits & 0b11);
 		break;
 	case 0b11:
@@ -152,31 +152,31 @@ int decode_repeat_stream(u8 **data, u16 *len, u8 *bitpos, int base) {
 				if (bits) {
 					bits = get_bits(data, len, bitpos, 1);
 					if (bits) {
-						printf("%d bytes ", base);
+						printf("=%d ", base);
 						return base;
 					} else {//111110
 						bits = get_bits(data, len, bitpos, 6);
-						printf("%d bytes ", base+64+(~bits & 0b111111));
+						printf("=%d ", base+64+(~bits & 0b111111));
 						return base + 64 + (~bits & 0b111111);
 					}
 				} else {//11110
 					bits = get_bits(data, len, bitpos, 5);
-					printf("%d bytes ", base+32+(~bits & 0b11111));
+					printf("=%d ", base+32+(~bits & 0b11111));
 					return base + 32 + (~bits & 0b11111);
 				}
 			} else {//1110
 				bits = get_bits(data, len, bitpos, 4);
-				printf("%d bytes ", base+16+(~bits & 0b1111));
+				printf("=%d ", base+16+(~bits & 0b1111));
 				return base + 16 + (~bits & 0b1111);
 			}
 		} else {//110
 			bits = get_bits(data, len, bitpos, 3);
-			printf("%d bytes ", base+8+(~bits & 0b111));
+			printf("=%d ", base+8+(~bits & 0b111));
 			return base + 8 + (~bits & 0b111);
 		}
 		break;
 	case 0b00:
-		printf("%d bytes ", base + 1);
+		printf("=%d ", base + 1);
 		return base + 1;
 	}
 
@@ -400,7 +400,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 								output_byte(0, decode_buf, fout);
 								break;
 							case 0b00:
-								count = decode_repeat_stream(&data, &len, &bitpos, 0);
+								count = decode_number(&data, &len, &bitpos, 0);
 								printf("PREFIX %d\n", count * 128);
 								base = count * 128;
 								break;
@@ -420,7 +420,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							printf("twobyte_flag := %d\n", twobyte_flag);
 						}
 					} else { /* 11110 */
-						count = decode_repeat_stream(&data, &len, &bitpos, 0);
+						count = decode_number(&data, &len, &bitpos, 0);
 
 						memcpy(&cur_line[line_pos], &cur_line[line_pos - 80], count);
 						fwrite(&cur_line[line_pos - 80], 1, count, fout);
@@ -440,7 +440,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					output_byte(bits, decode_buf, fout);
 					break;
 				case 0b00: /* 1100 */
-					count = decode_repeat_stream(&data, &len, &bitpos, base);
+					count = decode_number(&data, &len, &bitpos, base);
 					printf("%d bytes from previous line (+%d w/flag)\n", count, base);
 					prev8_flag = !prev8_flag;
 					printf("prev8_flag := %d\n", prev8_flag);
@@ -448,7 +448,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					base = 0;
 					break;
 				case 0b10: /* 1110 */
-					count = decode_repeat_stream(&data, &len, &bitpos, base);
+					count = decode_number(&data, &len, &bitpos, base);
 					if (twobyte_flag) {
 						printf("%d last bytes (by 2, +%d)\n", count, base);
 						output_bytes_last2(count, &lastbyte, fout);
@@ -466,7 +466,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				output_byte(decode_buf[(~bits & 0b1111)], decode_buf, fout);
 			}
 		} else { /* 0 */
-			count = decode_repeat_stream(&data, &len, &bitpos, base);
+			count = decode_number(&data, &len, &bitpos, base);
 			printf("%d bytes from previous line (+%d)\n", count, base);
 			output_previous(3, count, fout);
 			base = 0;
