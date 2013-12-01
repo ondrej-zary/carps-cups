@@ -130,50 +130,51 @@ void go_backward(int num_bits, u8 **data, u16 *len, u8 *bitpos) {
 
 /* decode a number beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
 int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
-	u8 bits = get_bits(data, len, bitpos, 2);
+	u8 bits;// = get_bits(data, len, bitpos, 2);
 	printf("decode_number base=%d ", base);
-	switch (bits) {
-	case 0b01:
-		bits = get_bits(data, len, bitpos, 1);
-		printf("=%d ", base + 2 + (~bits & 0b1));
-		return base + 2 + (~bits & 0b1);
-		break;
-	case 0b10:
-		bits = get_bits(data, len, bitpos, 2);
-		printf("=%d ", base + 4 + (~bits & 0b11));
-		return base + 4 + (~bits & 0b11);
-		break;
-	case 0b11:
+
+	if (get_bits(data, len, bitpos, 1)) {
 		if (get_bits(data, len, bitpos, 1)) {
 			if (get_bits(data, len, bitpos, 1)) {
 				if (get_bits(data, len, bitpos, 1)) {
 					if (get_bits(data, len, bitpos, 1)) {
-						printf("=%d ", base);
-						return base;
-					} else {//111110
-						bits = get_bits(data, len, bitpos, 6);
-						printf("=%d ", base+64+(~bits & 0b111111));
-						return base + 64 + (~bits & 0b111111);
+						if (get_bits(data, len, bitpos, 1)) {
+							printf("=%d ", base);
+							return base;
+						} else { /* 111110 */
+							bits = get_bits(data, len, bitpos, 6);
+							printf("=%d ", base+64+(~bits & 0b111111));
+							return base + 64 + (~bits & 0b111111);
+						}
+					} else { /* 11110 */
+						bits = get_bits(data, len, bitpos, 5);
+						printf("=%d ", base+32+(~bits & 0b11111));
+						return base + 32 + (~bits & 0b11111);
 					}
-				} else {//11110
-					bits = get_bits(data, len, bitpos, 5);
-					printf("=%d ", base+32+(~bits & 0b11111));
-					return base + 32 + (~bits & 0b11111);
+				} else { /* 1110 */
+					bits = get_bits(data, len, bitpos, 4);
+					printf("=%d ", base+16+(~bits & 0b1111));
+					return base + 16 + (~bits & 0b1111);
 				}
-			} else {//1110
-				bits = get_bits(data, len, bitpos, 4);
-				printf("=%d ", base+16+(~bits & 0b1111));
-				return base + 16 + (~bits & 0b1111);
+			} else { /* 110 */
+				bits = get_bits(data, len, bitpos, 3);
+				printf("=%d ", base+8+(~bits & 0b111));
+				return base + 8 + (~bits & 0b111);
 			}
-		} else {//110
-			bits = get_bits(data, len, bitpos, 3);
-			printf("=%d ", base+8+(~bits & 0b111));
-			return base + 8 + (~bits & 0b111);
+		} else { /* 10 */
+			bits = get_bits(data, len, bitpos, 2);
+			printf("=%d ", base + 4 + (~bits & 0b11));
+			return base + 4 + (~bits & 0b11);
 		}
-		break;
-	case 0b00:
-		printf("=%d ", base + 1);
-		return base + 1;
+	} else {
+		if (get_bits(data, len, bitpos, 1)) {
+			bits = get_bits(data, len, bitpos, 1);
+			printf("=%d ", base + 2 + (~bits & 0b1));
+			return base + 2 + (~bits & 0b1);
+		} else {
+			printf("=%d ", base + 1);
+			return base + 1;
+		}
 	}
 
 	return 0;
