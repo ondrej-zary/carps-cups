@@ -183,7 +183,7 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
 	return 0;
 }
 
-#define DECODE_BUFSIZE 16
+#define DICT_SIZE 16
 u8 lastbyte = 0;//////remove
 u8 last_lines[8][600], cur_line[600];
 //, last_line2[600], last_line3[600], last_line4[600], last_line5[600], last_line6[600], last_line7[600], last_line8[600];
@@ -209,7 +209,7 @@ void next_line(void) {
 
 void buffer_push(u8 *buf, u8 data) {
 //	printf("buffer_push %x\n", data);
-	memmove(buf + 1, buf, DECODE_BUFSIZE - 1);
+	memmove(buf + 1, buf, DICT_SIZE - 1);
 	buf[0] = data;
 }
 
@@ -217,13 +217,13 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 //	int present = 0;
 
 	printf("DICTIONARY=");
-	for (int j = 0; j < DECODE_BUFSIZE; j++)
+	for (int j = 0; j < DICT_SIZE; j++)
 		printf("%02X ", buf[j]);
 	printf("\n");
 
-	for (int i = 0; i < DECODE_BUFSIZE; i++)
+	for (int i = 0; i < DICT_SIZE; i++)
 		if (buf[i] == byte) {
-			memmove(buf + i, buf + i + 1, DECODE_BUFSIZE - i);
+			memmove(buf + i, buf + i + 1, DICT_SIZE - i);
 			break;
 		}
 	buffer_push(buf, byte);
@@ -285,9 +285,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	int i;
 	int count;
 	int base = 0;
-	u8 decode_buf[DECODE_BUFSIZE];
-//	u8 decode_bufpos = 0;
-	memset(decode_buf, 0xaa, DECODE_BUFSIZE);
+	u8 dictionary[DICT_SIZE];
+	memset(dictionary, 0xaa, DICT_SIZE);
 	
 	if (data[0] != 0x01)
 		printf("!!!!!!!!");
@@ -384,7 +383,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							switch (bits) {
 							case 0b01:
 								printf("zero byte\n");
-								output_byte(0, decode_buf, fout);
+								output_byte(0, dictionary, fout);
 								break;
 							case 0b00:
 								count = decode_number(&data, &len, &bitpos, 0);
@@ -424,7 +423,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				case 0b01: /* 1101 */
 					bits = get_bits(&data, &len, &bitpos, 8);
 					printf("byte immediate 0b%s\n", bin(bits));
-					output_byte(bits, decode_buf, fout);
+					output_byte(bits, dictionary, fout);
 					break;
 				case 0b00: /* 1100 */
 					go_backward(1, &data, &len, &bitpos);
@@ -442,7 +441,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				/* DICTIONARY */
 				bits = get_bits(&data, &len, &bitpos, 4);
 				printf("[%d] byte from dictionary\n", (~bits & 0b1111));
-				output_byte(decode_buf[(~bits & 0b1111)], decode_buf, fout);
+				output_byte(dictionary[(~bits & 0b1111)], dictionary, fout);
 			}
 		} else { /* 0 */
 			count = decode_number(&data, &len, &bitpos, base);
