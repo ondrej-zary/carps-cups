@@ -383,46 +383,43 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		printf("out_pos: 0x%x, line_num=%d, line_pos=%d (%d), len=%d ", out_bytes, line_num, line_pos, line_pos * 8, len);
 
 		u8 bits = get_bits(&data, &len, &bitpos, 1);
-		if (bits) {
+		if (bits) { /* 1 */
 			bits = get_bits(&data, &len, &bitpos, 1);
-			if (bits) {
+			if (bits) { /* 11 */
 				bits = get_bits(&data, &len, &bitpos, 2);
 				switch (bits) {
-				case 0b11:
+				case 0b11: /* 1111 */
 					bits = get_bits(&data, &len, &bitpos, 1);
-					if (bits) {
-						bits = get_bits(&data, &len, &bitpos, 3);
-						switch (bits) {
-						case 0b101:
-							printf("zero byte\n");
-							output_byte(0, decode_buf, fout);
-							break;
-						case 0b100:
-							count = decode_repeat_stream(&data, &len, &bitpos, 0);
-							printf("PREFIX %d\n", count * 128);
-							base = count * 128;
-							break;
-						case 0b011:
-						case 0b010:
-						case 0b001:
-						case 0b000:
-							go_backward(6, &data, &len, &bitpos);
+					if (bits) { /* 11111 */
+						bits = get_bits(&data, &len, &bitpos, 1);
+						if (bits) { /* 111111 */
+							bits = get_bits(&data, &len, &bitpos, 2);
+							switch (bits) {
+							case 0b01:
+								printf("zero byte\n");
+								output_byte(0, decode_buf, fout);
+								break;
+							case 0b00:
+								count = decode_repeat_stream(&data, &len, &bitpos, 0);
+								printf("PREFIX %d\n", count * 128);
+								base = count * 128;
+								break;
+							case 0b10:
+								printf("block end marker??? ");
+								prev8_flag = 0;
+								twobyte_flag = 0;
+								printf("\n");
+								return 0;
+							default:
+								printf("!!!!!!!! 0b%s\n", bin_n(bits, 2));
+							}
+						} else { /* 111110 */
+							go_backward(4, &data, &len, &bitpos);
 							printf("TWOBYTE FLAG\n");
 							twobyte_flag = !twobyte_flag;
 							printf("twobyte_flag := %d\n", twobyte_flag);
-							break;
-						case 0b110:
-							printf("block end marker??? ");
-			//				bits = get_bits(&data, &len, &bitpos, 8);
-			//				bits = get_bits(&data, &len, &bitpos, 8);
-							prev8_flag = 0;
-							twobyte_flag = 0;
-							printf("\n");
-							return 0;
-						default:
-							printf("!!!!!!!! 0b%s\n", bin_n(bits, 3));
 						}
-					} else {
+					} else { /* 11110 */
 						count = decode_repeat_stream(&data, &len, &bitpos, 0);
 
 						memcpy(&cur_line[line_pos], &cur_line[line_pos - 80], count);
@@ -437,12 +434,12 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						printf("%d bytes from this line [@-80]\n", count);
 					}
 					break;
-				case 0b01:
+				case 0b01: /* 1101 */
 					bits = get_bits(&data, &len, &bitpos, 8);
 					printf("byte immediate 0b%s\n", bin(bits));
 					output_byte(bits, decode_buf, fout);
 					break;
-				case 0b00:
+				case 0b00: /* 1100 */
 					count = decode_repeat_stream(&data, &len, &bitpos, base);
 					printf("%d bytes from previous line (+%d w/flag)\n", count, base);
 					prev8_flag = !prev8_flag;
@@ -450,7 +447,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					output_previous(3, count, fout);
 					base = 0;
 					break;
-				case 0b10:
+				case 0b10: /* 1110 */
 					count = decode_repeat_stream(&data, &len, &bitpos, base);
 					if (twobyte_flag) {
 						printf("%d last bytes (by 2, +%d)\n", count, base);
@@ -462,13 +459,13 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					base = 0;
 					break;
 				}
-			} else {
+			} else { /* 10 */
 				/* DICTIONARY */
 				bits = get_bits(&data, &len, &bitpos, 4);
 				printf("[%d] byte from dictionary\n", (~bits & 0b1111));
 				output_byte(decode_buf[(~bits & 0b1111)], decode_buf, fout);
 			}
-		} else {
+		} else { /* 0 */
 			count = decode_repeat_stream(&data, &len, &bitpos, base);
 			printf("%d bytes from previous line (+%d)\n", count, base);
 			output_previous(3, count, fout);
