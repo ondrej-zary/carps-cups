@@ -191,7 +191,6 @@ int out_bytes = 0;
 u16 line_num = 0;
 u16 line_pos;
 u16 line_len = 591;
-bool prev8_flag = false;
 
 void next_line(void) {
 	memcpy(last_lines[7], last_lines[6], line_len);
@@ -251,24 +250,12 @@ void output_bytes_last(int count, int offset, FILE *fout) {
 }
 
 void output_previous(int line, int count, FILE *fout) {
-	if (prev8_flag) {
-		printf("line += 4\n");
-		line += 4;
-	}
-
 	printf("previous (line=%d): ", line);
 	for (int i = 0; i < count; i++)
 		printf("%02x ", last_lines[line][line_pos + i]);
 	printf("\n");
 	fwrite(last_lines[line] + line_pos, 1, count, fout);
 	memcpy(cur_line + line_pos, last_lines[line] + line_pos, count);
-
-//		u8 tmp[600];
-//		memcpy(tmp, last_lines[line], line_len);
-//		for (int i = 0; i < ((line < 7) ? line : 7); i++)
-//			memcpy(last_lines[i+1], last_lines[i], line_len);
-//		memcpy(last_lines[0], tmp, line_len);
-
 
 	out_bytes += count;
 	line_pos += count;
@@ -283,7 +270,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	int count;
 	int base = 0;
 	u8 dictionary[DICT_SIZE];
-	bool twobyte_flag = false;
+	bool twobyte_flag = false, prev8_flag = false;
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 	
@@ -390,9 +377,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 								base = count * 128;
 								break;
 							case 0b10:
-								printf("block end marker??? ");
-								prev8_flag = 0;
-								printf("\n");
+								printf("block end marker???\n");
 								return 0;
 							default:
 								printf("!!!!!!!! 0b%s\n", bin_n(bits, 2));
@@ -434,7 +419,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		} else { /* 0 */
 			count = decode_number(&data, &len, &bitpos, base);
 			printf("%d bytes from previous line (+%d)\n", count, base);
-			output_previous(3, count, fout);
+			output_previous(prev8_flag ? 7 : 3, count, fout);
 			base = 0;
 		}
 	}
