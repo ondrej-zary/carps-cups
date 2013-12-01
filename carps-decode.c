@@ -389,51 +389,40 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				bits = get_bits(&data, &len, &bitpos, 2);
 				switch (bits) {
 				case 0b11:
-					bits = get_bits(&data, &len, &bitpos, 4);
-					switch (bits) {
-					case 0b1101:
-						printf("zero byte\n");
-						output_byte(0, decode_buf, fout);
-						break;
-					case 0b1100:
-						bits = get_bits(&data, &len, &bitpos, 2);
+					bits = get_bits(&data, &len, &bitpos, 1);
+					if (bits) {
+						bits = get_bits(&data, &len, &bitpos, 3);
 						switch (bits) {
-						case 0b00:
-							base = 128;
-							printf("PREFIX %d\n", base);
+						case 0b101:
+							printf("zero byte\n");
+							output_byte(0, decode_buf, fout);
 							break;
-						case 0b01:
-							bits = get_bits(&data, &len, &bitpos, 1);
-							base = bits ? 256 : 384;
-							printf("PREFIX %d\n", base);
+						case 0b100:
+							count = decode_repeat_stream(&data, &len, &bitpos, 0);
+							printf("PREFIX %d\n", count * 128);
+							base = count * 128;
 							break;
-						case 0b10:
-							bits = get_bits(&data, &len, &bitpos, 2);
-							if (bits != 0b11)
-								printf("invalid bits 0b%s\n", bin_n(bits, 2));
-							base = 512;
-							printf("PREFIX %d\n", base);
+						case 0b011:
+						case 0b010:
+						case 0b001:
+						case 0b000:
+							go_backward(6, &data, &len, &bitpos);
+							printf("TWOBYTE FLAG\n");
+							twobyte_flag = !twobyte_flag;
+							printf("twobyte_flag := %d\n", twobyte_flag);
 							break;
+						case 0b110:
+							printf("block end marker??? ");
+			//				bits = get_bits(&data, &len, &bitpos, 8);
+			//				bits = get_bits(&data, &len, &bitpos, 8);
+							prev8_flag = 0;
+							twobyte_flag = 0;
+							printf("\n");
+							return 0;
 						default:
-							printf("invalid bits 0b%s\n", bin_n(bits, 2));
+							printf("!!!!!!!! 0b%s\n", bin_n(bits, 3));
 						}
-						break;
-					case 0b1011:
-					case 0b1010:
-					case 0b1001:
-					case 0b1000:
-						go_backward(6, &data, &len, &bitpos);
-						printf("TWOBYTE FLAG\n");
-						twobyte_flag = !twobyte_flag;
-						printf("twobyte_flag := %d\n", twobyte_flag);
-						break;
-					case 0b0010:
-					case 0b0011:
-					case 0b0100:
-					case 0b0101:
-					case 0b0110:
-					case 0b0111:
-						go_backward(3, &data, &len, &bitpos);
+					} else {
 						count = decode_repeat_stream(&data, &len, &bitpos, 0);
 
 						memcpy(&cur_line[line_pos], &cur_line[line_pos - 80], count);
@@ -446,17 +435,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							next_line();
 
 						printf("%d bytes from this line [@-80]\n", count);
-						break;
-					case 0b1110:
-						printf("block end marker??? ");
-		//				bits = get_bits(&data, &len, &bitpos, 8);
-		//				bits = get_bits(&data, &len, &bitpos, 8);
-						prev8_flag = 0;
-						twobyte_flag = 0;
-						printf("\n");
-						return 0;
-					default:
-						printf("!!!!!!!! 0b%s\n", bin_n(bits, 4));
 					}
 					break;
 				case 0b01:
