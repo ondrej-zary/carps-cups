@@ -237,9 +237,7 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 		next_line();
 }
 
-void output_bytes_last(int count, FILE *fout) {
-	int offset = twobyte_flag ? 2 : 1;
-
+void output_bytes_last(int count, int offset, FILE *fout) {
 	for (int i = 0; i < count; i++) {
 		printf("%02x ", cur_line[line_pos - offset]);
 		fwrite(&cur_line[line_pos - offset], 1, 1, fout);
@@ -407,17 +405,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 						}
 					} else { /* 11110 */
 						count = decode_number(&data, &len, &bitpos, 0);
-
-						memcpy(&cur_line[line_pos], &cur_line[line_pos - 80], count);
-						fwrite(&cur_line[line_pos - 80], 1, count, fout);
-						out_bytes += count;
-						line_pos += count;
-						lastbyte = cur_line[line_pos - 1];
-
-						if (line_pos > line_len)
-							next_line();
-
 						printf("%d bytes from this line [@-80]\n", count);
+						output_bytes_last(count, 80, fout);
 					}
 					break;
 				case 0b01: /* 1101 */
@@ -433,7 +422,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				case 0b10: /* 1110 */
 					count = decode_number(&data, &len, &bitpos, base);
 					printf("%d last bytes (+%d)\n", count, base);
-					output_bytes_last(count, fout);
+					output_bytes_last(count, twobyte_flag ? 2 : 1, fout);
 					base = 0;
 					break;
 				}
