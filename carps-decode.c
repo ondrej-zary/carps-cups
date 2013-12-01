@@ -237,26 +237,13 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 		next_line();
 }
 
-void output_bytes_repeat(int count, u8 *buf, FILE *fout) {
-	printf("BYTES=");
-	for (int i = 0; i < count; i++) {
-		fwrite(buf, 1, 1, fout);
-		cur_line[line_pos] = buf[0];
-		line_pos++;
-		printf("%02x ", buf[0]);
-	}
-	printf("\n");
-	lastbyte = cur_line[line_pos - 1];
-	out_bytes += count;
-	if (line_pos > line_len)
-		next_line();
-}
+void output_bytes_last(int count, FILE *fout) {
+	int offset = twobyte_flag ? 2 : 1;
 
-void output_bytes_last2(int count, u8 *buf, FILE *fout) {
 	for (int i = 0; i < count; i++) {
-		printf("%02x ", cur_line[line_pos - 2]);
-		fwrite(&cur_line[line_pos - 2], 1, 1, fout);
-		cur_line[line_pos] = cur_line[line_pos - 2];
+		printf("%02x ", cur_line[line_pos - offset]);
+		fwrite(&cur_line[line_pos - offset], 1, 1, fout);
+		cur_line[line_pos] = cur_line[line_pos - offset];
 		line_pos++;
 	}
 	printf("\n");
@@ -446,13 +433,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					break;
 				case 0b10: /* 1110 */
 					count = decode_number(&data, &len, &bitpos, base);
-					if (twobyte_flag) {
-						printf("%d last bytes (by 2, +%d)\n", count, base);
-						output_bytes_last2(count, &lastbyte, fout);
-					} else {
-						printf("%d repeating bytes (by 1, +%d)\n", count, base);
-						output_bytes_repeat(count, &lastbyte, fout);
-					}
+					printf("%d last bytes (+%d)\n", count, base);
+					output_bytes_last(count, fout);
 					base = 0;
 					break;
 				}
