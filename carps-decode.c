@@ -144,14 +144,10 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
 		return base + 4 + (~bits & 0b11);
 		break;
 	case 0b11:
-		bits = get_bits(data, len, bitpos, 1);
-		if (bits) {
-			bits = get_bits(data, len, bitpos, 1);
-			if (bits) {
-				bits = get_bits(data, len, bitpos, 1);
-				if (bits) {
-					bits = get_bits(data, len, bitpos, 1);
-					if (bits) {
+		if (get_bits(data, len, bitpos, 1)) {
+			if (get_bits(data, len, bitpos, 1)) {
+				if (get_bits(data, len, bitpos, 1)) {
+					if (get_bits(data, len, bitpos, 1)) {
 						printf("=%d ", base);
 						return base;
 					} else {//111110
