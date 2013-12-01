@@ -440,12 +440,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					output_byte(bits, decode_buf, fout);
 					break;
 				case 0b00: /* 1100 */
-					count = decode_number(&data, &len, &bitpos, base);
-					printf("%d bytes from previous line (+%d w/flag)\n", count, base);
+					go_backward(1, &data, &len, &bitpos);
 					prev8_flag = !prev8_flag;
 					printf("prev8_flag := %d\n", prev8_flag);
-					output_previous(3, count, fout);
-					base = 0;
 					break;
 				case 0b10: /* 1110 */
 					count = decode_number(&data, &len, &bitpos, base);
