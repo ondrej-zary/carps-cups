@@ -184,9 +184,7 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
 }
 
 #define DICT_SIZE 16
-u8 lastbyte = 0;//////remove
 u8 last_lines[8][600], cur_line[600];
-//, last_line2[600], last_line3[600], last_line4[600], last_line5[600], last_line6[600], last_line7[600], last_line8[600];
 int out_bytes = 0;
 u16 line_num = 0;
 u16 line_pos;
@@ -228,7 +226,6 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 	fwrite(&byte, 1, 1, fout);
 	cur_line[line_pos] = byte;
 	printf("BYTE=%x\n", byte);
-	lastbyte = byte;
 	out_bytes++;
 	line_pos++;
 	if (line_pos > line_len)
@@ -244,7 +241,6 @@ void output_bytes_last(int count, int offset, FILE *fout) {
 	}
 	printf("\n");
 	out_bytes += count;
-	lastbyte = cur_line[line_pos - 1];
 	if (line_pos > line_len)
 		next_line();
 }
@@ -259,7 +255,6 @@ void output_previous(int line, int count, FILE *fout) {
 
 	out_bytes += count;
 	line_pos += count;
-	lastbyte = cur_line[line_pos - 1];
 	if (line_pos > line_len)
 		next_line();
 }
