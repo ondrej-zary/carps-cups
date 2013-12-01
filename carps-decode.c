@@ -140,22 +140,22 @@ int count_ones(int max, u8 **data, u16 *len, u8 *bitpos) {
 #define MASK(n)	((1 << n) - 1)
 
 /* decode a number beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
-int decode_number(u8 **data, u16 *len, u8 *bitpos, int base) {
+int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 	int num_bits;
-	printf("decode_number base=%d ", base);
+	printf("decode_number ");
 
 	num_bits = count_ones(6, data, len, bitpos) + 1;
 	if (num_bits == 7)
-		return base;
+		return 0;
 
 	if (num_bits == 1) {
 		if (get_bits(data, len, bitpos, 1))
 			num_bits = 1;
 		else
-			return base + 1;
+			return 1;
 	}
 
-	return base + (1 << num_bits) + (~get_bits(data, len, bitpos, num_bits) & MASK(num_bits));
+	return (1 << num_bits) + (~get_bits(data, len, bitpos, num_bits) & MASK(num_bits));
 }
 
 #define DICT_SIZE 16
@@ -335,7 +335,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 								output_byte(0, dictionary, fout);
 								break;
 							case 0b00:
-								count = decode_number(&data, &len, &bitpos, 0);
+								count = decode_number(&data, &len, &bitpos);
 								printf("PREFIX %d\n", count * 128);
 								base = count * 128;
 								break;
@@ -351,7 +351,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							printf("twobyte_flag := %d\n", twobyte_flag);
 						}
 					} else { /* 11110 */
-						count = decode_number(&data, &len, &bitpos, 0);
+						count = decode_number(&data, &len, &bitpos);
 						printf("%d bytes from this line [@-80]\n", count);
 						output_bytes_last(count, 80, fout);
 					}
@@ -367,9 +367,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					printf("prev8_flag := %d\n", prev8_flag);
 					break;
 				case 0b10: /* 1110 */
-					count = decode_number(&data, &len, &bitpos, base);
-					printf("%d last bytes (+%d)\n", count, base);
-					output_bytes_last(count, twobyte_flag ? 2 : 1, fout);
+					count = decode_number(&data, &len, &bitpos);
+					printf("%d last bytes (+%d)\n", count + base, base);
+					output_bytes_last(count + base, twobyte_flag ? 2 : 1, fout);
 					base = 0;
 					break;
 				}
@@ -380,9 +380,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				output_byte(dictionary[(~bits & 0b1111)], dictionary, fout);
 			}
 		} else { /* 0 */
-			count = decode_number(&data, &len, &bitpos, base);
-			printf("%d bytes from previous line (+%d)\n", count, base);
-			output_previous(prev8_flag ? 7 : 3, count, fout);
+			count = decode_number(&data, &len, &bitpos);
+			printf("%d bytes from previous line (+%d)\n", count + base, base);
+			output_previous(prev8_flag ? 7 : 3, count + base, fout);
 			base = 0;
 		}
 	}
