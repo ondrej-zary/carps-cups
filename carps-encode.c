@@ -80,7 +80,7 @@ u16 encode_print_data(char *data, int bits, char *out) {
 }
 
 void usage() {
-	printf("usage: carps-encode <file>\n");
+	printf("usage: carps-encode <file.pbm>\n");
 }
 
 
@@ -88,6 +88,8 @@ int main(int argc, char *argv[]) {
 	char buf[BUF_SIZE], in_buf[BUF_SIZE];
 	struct carps_doc_info *info;
 	struct carps_print_params params;
+	char tmp[100];
+	int width, height;
 
 	if (argc < 2) {
 		usage();
@@ -99,6 +101,18 @@ int main(int argc, char *argv[]) {
 		perror("Unable to open file");
 		return 2;
 	}
+
+	fgets(tmp, sizeof(tmp), f);
+	if (strcmp(tmp, "P4\n")) {
+		fprintf(stderr, "Invalid PBM file\n");
+		return 2;
+	}
+	do
+		fgets(tmp, sizeof(tmp), f);
+	while (tmp[0] == '#');
+	sscanf(tmp, "%d %d", &width, &height);
+	fprintf(stderr, "width=%d height=%d\n", width, height);
+
 	/* document beginning */
 	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
