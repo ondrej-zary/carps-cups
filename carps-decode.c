@@ -163,7 +163,10 @@ u8 last_lines[8][600], cur_line[600];
 int out_bytes = 0;
 u16 line_num = 0;
 u16 line_pos;
-u16 line_len = 591;
+u16 line_len;
+bool output_header = false;
+bool header_written = false;
+long height_pos;
 
 void next_line(void) {
 	memcpy(last_lines[7], last_lines[6], line_len);
@@ -196,7 +199,7 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 	printf("BYTE=%x\n", byte);
 	out_bytes++;
 	line_pos++;
-	if (line_pos > line_len)
+	if (line_pos >= line_len)
 		next_line();
 }
 
@@ -209,7 +212,7 @@ void output_bytes_last(int count, int offset, FILE *fout) {
 	}
 	printf("\n");
 	out_bytes += count;
-	if (line_pos > line_len)
+	if (line_pos >= line_len)
 		next_line();
 }
 
@@ -223,9 +226,12 @@ void output_previous(int line, int count, FILE *fout) {
 
 	out_bytes += count;
 	line_pos += count;
-	if (line_pos > line_len)
+	if (line_pos >= line_len)
 		next_line();
 }
+
+#define TMP_BUFLEN 100
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
 int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	bool in_escape = false;
@@ -234,7 +240,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	int base = 0;
 	u8 dictionary[DICT_SIZE];
 	bool twobyte_flag = false, prev8_flag = false;
-
+	char tmp[TMP_BUFLEN];
+	int width, height;
+	
 	memset(dictionary, 0xaa, DICT_SIZE);
 	
 	if (data[0] != 0x01)
@@ -255,6 +263,28 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		else
 			break;
 	}
+
+	if (!strncmp((char *)data + 1, "\x1b[;", 3)) {
+		if (i > TMP_BUFLEN) {
+			printf("ESC sequence too long!\n");
+			return 1;
+		}
+		strncpy(tmp, (char *)data + 3, i);
+		tmp[i] = '\0';
+		sscanf(tmp, ";%d;%d;", &width, &height);
+		printf("width=%d, height=%d\n", width, height);
+		line_len = DIV_ROUND_UP(width, 8);
+		if (line_len > 500)////////////////
+			line_len++;
+		printf("line_len=%d\n", line_len);
+		if (output_header && !header_written) {
+			fprintf(fout, "P4\n%d ", line_len * 8);
+			height_pos = ftell(fout);
+			fprintf(fout, "%4d\n", 0); /* we don't know height yet */
+			header_written = true;
+		}
+	}
+
 	data += i;
 	len -= i;
 	if (len < sizeof(struct carps_print_header)) {
@@ -418,11 +448,13 @@ int main(int argc, char *argv[]) {
 		perror("Unable to open output file");
 		return 2;
 	}
+	if (argc > 2 && !strcmp(argv[2], "--header"))
+		output_header = true;
 	
 	while (!feof(f)) {
 		ret = get_block(buf, f, 0);
 		if (ret < 0)
-			return ret;
+			break;
 		else
 			len = ret;
 
@@ -534,6 +566,12 @@ int main(int argc, char *argv[]) {
 			dump_data(data, len);
 			break;
 		}
+	}
+
+	/* now we know line count so we can fill it in */
+	if (output_header) {
+		fseek(fout, height_pos, SEEK_SET);
+		fprintf(fout, "%4d", line_num - 1);
 	}
 
 	fclose(fout);
