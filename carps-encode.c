@@ -130,33 +130,49 @@ u16 encode_print_data(FILE *f, char *out) {
 	int out_bits = 0;
 	u8 bitpos = 0;
 	u16 len = 0;
+	int line_num = 0;
 	int tmp;
 
-	fread(cur_line, 1, line_len, f);
-	line_pos = 0;
+	while (!feof(f)) {
+		fread(cur_line, 1, line_len, f);
+		fprintf(stderr, "line_num=%d\n", line_num);
+		line_pos = 0;
 
-	while (line_pos < line_len) {
-		if (line_pos > 1) {
-			tmp = count_run_length(line_pos - 1);
-			fprintf(stderr, "run_len=%d\n", tmp);
-			if (tmp > 1) {
-				n_bits = encode_last_bytes(&out, &len, &bitpos, tmp);
-				line_pos += tmp;
+		while (line_pos < line_len) {
+			fprintf(stderr, "line_pos=%d: ", line_pos);
+			if (line_pos > 0) {
+				tmp = count_run_length(line_pos - 1);
+				fprintf(stderr, "run_len=%d\n", tmp);
+				if (tmp > 1) {
+					n_bits = encode_last_bytes(&out, &len, &bitpos, tmp);
+					line_pos += tmp;
+					continue;
+				}
 			}
-		}
 
-		/* zero byte */
-		if (cur_line[line_pos] == 0x00) {
-			put_bits(&out, &len, &bitpos, 8, 0b11111101);
-			line_pos++;
-			n_bits = 8;
-		} else { /* immediate */
-			put_bits(&out, &len, &bitpos, 4, 0b1101);
-			put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
-			line_pos++;
-			n_bits = 12;
+			/* zero byte */
+			if (cur_line[line_pos] == 0x00) {
+				put_bits(&out, &len, &bitpos, 8, 0b11111101);
+				line_pos++;
+				n_bits = 8;
+			} else { /* immediate */
+				put_bits(&out, &len, &bitpos, 4, 0b1101);
+				put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
+				line_pos++;
+				n_bits = 12;
+			}
+			out_bits += n_bits;
 		}
-		out_bits += n_bits;
+		memcpy(last_lines[7], last_lines[6], line_len);
+		memcpy(last_lines[6], last_lines[5], line_len);
+		memcpy(last_lines[5], last_lines[4], line_len);
+		memcpy(last_lines[4], last_lines[3], line_len);
+		memcpy(last_lines[3], last_lines[2], line_len);
+		memcpy(last_lines[2], last_lines[1], line_len);
+		memcpy(last_lines[1], last_lines[0], line_len);
+		memcpy(last_lines[0], cur_line, line_len);
+		line_pos = 0;
+		line_num++;
 	}
 
 	/* ending 0x80 byte */
