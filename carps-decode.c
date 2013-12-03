@@ -571,7 +571,7 @@ int main(int argc, char *argv[]) {
 	/* now we know line count so we can fill it in */
 	if (output_header) {
 		fseek(fout, height_pos, SEEK_SET);
-		fprintf(fout, "%4d", line_num - 1);
+		fprintf(fout, "%4d", line_num);
 	}
 
 	fclose(fout);
