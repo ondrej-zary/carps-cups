@@ -137,8 +137,6 @@ int count_ones(int max, u8 **data, u16 *len, u8 *bitpos) {
 	return i;
 }
 
-#define MASK(n)	((1 << n) - 1)
-
 /* decode a number beginning with 00, 01, 10, 110, 1110, 11110, 111110 */
 int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 	int num_bits;

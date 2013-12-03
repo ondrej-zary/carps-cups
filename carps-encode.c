@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include "carps.h"
 
 void fill_header(struct carps_header *header, u8 data_type, u8 block_type, u16 data_len) {
@@ -35,7 +36,7 @@ const char *bin_n(u8 x, u8 n) {
 
 /* put n bits of data */
 void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
-//	printf("put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));
+	fprintf(stderr, "put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));
 	bits <<= 8 - n;
 //	printf("put_bits2 len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, 8));
 	for (int i = 0; i < n; i++) {
@@ -57,24 +58,109 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 	}
 }
 
-u16 encode_print_data(char *data, int bits, char *out) {
+u16 line_len;
+u8 last_lines[8][600], cur_line[600];
+u16 line_pos;
+
+int count_run_length(int pos) {
+	int i;
+	u8 first = cur_line[pos];
+
+	for (i = pos + 1; i < line_len; i++)
+		if (cur_line[i] != first)
+			break;
+
+	return i - pos;
+}
+
+int fls(unsigned int n) {
+	int i = 0;
+
+	while (n >>= 1)
+		i++;
+
+	return i;
+}
+
+int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
+	int num_bits; 
+	fprintf(stderr, "encode_number(%d)\n", num);
+
+	if (num == 1) {
+		put_bits(data, len, bitpos, 2, 0b00);
+		return 2;
+	}
+
+	num_bits = fls(num);
+	fprintf(stderr, "num_bits=%d\n", num_bits);
+	if (num_bits == 1)
+		put_bits(data, len, bitpos, 2, 0b01);
+	else {
+		put_bits(data, len, bitpos, num_bits - 1, 0xff);
+		put_bits(data, len, bitpos, 1, 0b0);
+	}
+	put_bits(data, len, bitpos, num_bits, ~num & MASK(num_bits));
+	if (num_bits == 1)
+		return 3;
+	else
+		return num_bits + num_bits - 1;
+}
+
+int encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
+	put_bits(data, len, bitpos, 8, 0b11111100);
+	return 8 + encode_number(data, len, bitpos, num / 128);
+}
+
+int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
+	int total_bits = 0;
+
+	if (count >= 128)
+		total_bits += encode_prefix(data, len, bitpos, count);
+	count %= 128;
+	put_bits(data, len, bitpos, 4, 0b1110);
+	total_bits += 4;
+	
+	total_bits += encode_number(data, len, bitpos, count);
+
+	return total_bits;
+}
+
+u16 encode_print_data(FILE *f, char *out) {
 	u8 n_bits;
 	int out_bits = 0;
 	u8 bitpos = 0;
 	u16 len = 0;
+	int tmp;
 
-	while (bits > 0) {
-		put_bits(&out, &len, &bitpos, 4, 0b1101);
-		out_bits += 4;
-		n_bits = (bits < 8) ? bits : 8;
-		put_bits(&out, &len, &bitpos, n_bits, data[0]);
-		data++;
-		bits -= n_bits;
+	fread(cur_line, 1, line_len, f);
+	line_pos = 0;
+
+	while (line_pos < line_len) {
+		if (line_pos > 1) {
+			tmp = count_run_length(line_pos - 1);
+			fprintf(stderr, "run_len=%d\n", tmp);
+			if (tmp > 1) {
+				n_bits = encode_last_bytes(&out, &len, &bitpos, tmp);
+				line_pos += tmp;
+			}
+		}
+
+		/* zero byte */
+		if (cur_line[line_pos] == 0x00) {
+			put_bits(&out, &len, &bitpos, 8, 0b11111101);
+			line_pos++;
+			n_bits = 8;
+		} else { /* immediate */
+			put_bits(&out, &len, &bitpos, 4, 0b1101);
+			put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
+			line_pos++;
+			n_bits = 12;
+		}
 		out_bits += n_bits;
 	}
-//exit(1);
+
 	/* ending 0x80 byte */
-	out[0] = 0x80;
+//	out[0] = 0x80;
 
 	return (out_bits / 8) + 1;
 }
@@ -85,7 +171,7 @@ void usage() {
 
 
 int main(int argc, char *argv[]) {
-	char buf[BUF_SIZE], in_buf[BUF_SIZE];
+	char buf[BUF_SIZE];
 	struct carps_doc_info *info;
 	struct carps_print_params params;
 	char tmp[100];
@@ -112,12 +198,13 @@ int main(int argc, char *argv[]) {
 	while (tmp[0] == '#');
 	sscanf(tmp, "%d %d", &width, &height);
 	fprintf(stderr, "width=%d height=%d\n", width, height);
+	line_len = width / 8;
 
 	/* document beginning */
 	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
 	/* document info - title */
-	char *doc_title = "CARPS TEST";
+	char *doc_title = "Untitled";
 	info = (void *)buf;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
 	info->unknown = cpu_to_be16(0x11);
@@ -125,7 +212,7 @@ int main(int argc, char *argv[]) {
 	memcpy(buf + sizeof(struct carps_doc_info), doc_title, strlen(doc_title));
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(doc_title), stdout);
 	/* document info - user name */
-	char *user_name = "test user";
+	char *user_name = "root";
 	info = (void *)buf;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_USER);
 	info->unknown = cpu_to_be16(0x11);
@@ -175,13 +262,7 @@ int main(int argc, char *argv[]) {
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 	/* print data */
 	while (!feof(f)) {
-		int bits = 4724;
-		int bytes_read = fread(in_buf, 1, (bits + 4) / 8, f);
-		if (bytes_read * 8 < bits)
-			bits = bytes_read * 8;
-		if (bits < 1)
-			break;
-		u16 len = encode_print_data(in_buf, bits, buf + 15 + sizeof(struct carps_print_header));
+		u16 len = encode_print_data(f, buf + 15 + sizeof(struct carps_print_header));
 		strcpy(buf, "\x01\x1b[;4724;1;15.P");
 		struct carps_print_header *ph = (void *)buf + 15;
 		memset(ph, 0, sizeof(struct carps_print_header));
