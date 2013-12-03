@@ -125,15 +125,16 @@ int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
 	return total_bits;
 }
 
-u16 encode_print_data(FILE *f, char *out) {
+u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	u8 n_bits;
 	int out_bits = 0;
 	u8 bitpos = 0;
 	u16 len = 0;
 	int line_num = 0;
 	int tmp;
+	fprintf(stderr, "max_lines=%d\n", max_lines);
 
-	while (!feof(f)) {
+	while (!feof(f) && line_num <= max_lines) {
 		fread(cur_line, 1, line_len, f);
 		fprintf(stderr, "line_num=%d\n", line_num);
 		line_pos = 0;
@@ -278,7 +279,7 @@ int main(int argc, char *argv[]) {
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 	/* print data */
 	while (!feof(f)) {
-		u16 len = encode_print_data(f, buf + 15 + sizeof(struct carps_print_header));
+		u16 len = encode_print_data(65536 / line_len, f, buf + 15 + sizeof(struct carps_print_header));
 		strcpy(buf, "\x01\x1b[;4724;1;15.P");
 		struct carps_print_header *ph = (void *)buf + 15;
 		memset(ph, 0, sizeof(struct carps_print_header));
