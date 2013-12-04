@@ -82,13 +82,13 @@ int fls(unsigned int n) {
 	return i;
 }
 
-int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
+void encode_number(char **data, u16 *len, u8 *bitpos, int num) {
 	int num_bits; 
 	fprintf(stderr, "encode_number(%d)\n", num);
 
 	if (num == 1) {
 		put_bits(data, len, bitpos, 2, 0b00);
-		return 2;
+		return;
 	}
 
 	num_bits = fls(num);
@@ -100,38 +100,25 @@ int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
 		put_bits(data, len, bitpos, 1, 0b0);
 	}
 	put_bits(data, len, bitpos, num_bits, ~num & MASK(num_bits));
-	if (num_bits == 1)
-		return 3;
-	else
-		return num_bits + num_bits - 1;
 }
 
-int encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
+void encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
 	put_bits(data, len, bitpos, 8, 0b11111100);
-	return 8 + encode_number(data, len, bitpos, num / 128);
+	encode_number(data, len, bitpos, num / 128);
 }
 
-int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
-	int total_bits = 0;
-
+void encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
 	if (count >= 128)
-		total_bits += encode_prefix(data, len, bitpos, count);
+		encode_prefix(data, len, bitpos, count);
 	count %= 128;
 	put_bits(data, len, bitpos, 4, 0b1110);
-	total_bits += 4;
-	
-	total_bits += encode_number(data, len, bitpos, count);
-
-	return total_bits;
+	encode_number(data, len, bitpos, count);
 }
 
 u16 encode_print_data(int max_lines, FILE *f, char *out) {
-	u8 n_bits;
-	int out_bits = 0;
 	u8 bitpos = 0;
 	u16 len = 0;
 	int line_num = 0;
-	int tmp;
 	fprintf(stderr, "max_lines=%d\n", max_lines);
 
 	while (!feof(f) && line_num <= max_lines) {
@@ -142,12 +129,11 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
 			if (line_pos > 0) {
-				tmp = count_run_length(line_pos - 1);
+				int tmp = count_run_length(line_pos - 1);
 				fprintf(stderr, "run_len=%d\n", tmp);
 				if (tmp > 1) {
-					n_bits = encode_last_bytes(&out, &len, &bitpos, tmp);
+					encode_last_bytes(&out, &len, &bitpos, tmp);
 					line_pos += tmp;
-					out_bits += n_bits;
 					continue;
 				}
 			}
@@ -156,14 +142,12 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 			if (cur_line[line_pos] == 0x00) {
 				put_bits(&out, &len, &bitpos, 8, 0b11111101);
 				line_pos++;
-				out_bits += 8;
 				continue;
 			}
 			/* fallback: byte immediate */
 			put_bits(&out, &len, &bitpos, 4, 0b1101);
 			put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
 			line_pos++;
-			out_bits += 12;
 		}
 		memcpy(last_lines[7], last_lines[6], line_len);
 		memcpy(last_lines[6], last_lines[5], line_len);
@@ -180,7 +164,7 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	/* ending 0x80 byte */
 //	out[0] = 0x80;
 
-	return (out_bits / 8) + 1;
+	return len;
 }
 
 void usage() {
