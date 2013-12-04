@@ -121,7 +121,7 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	int line_num = 0;
 	fprintf(stderr, "max_lines=%d\n", max_lines);
 
-	while (!feof(f) && line_num <= max_lines) {
+	while (!feof(f) && line_num < max_lines) {
 		fread(cur_line, 1, line_len, f);
 		fprintf(stderr, "line_num=%d\n", line_num);
 		line_pos = 0;
@@ -160,7 +160,8 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 		line_pos = 0;
 		line_num++;
 	}
-
+	/* block end marker */
+	put_bits(&out, &len, &bitpos, 8, 0b11111110);
 	/* ending 0x80 byte */
 //	out[0] = 0x80;
 
