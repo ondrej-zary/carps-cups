@@ -156,14 +156,14 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 			if (cur_line[line_pos] == 0x00) {
 				put_bits(&out, &len, &bitpos, 8, 0b11111101);
 				line_pos++;
-				n_bits = 8;
-			} else { /* immediate */
-				put_bits(&out, &len, &bitpos, 4, 0b1101);
-				put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
-				line_pos++;
-				n_bits = 12;
+				out_bits += 8;
+				continue;
 			}
-			out_bits += n_bits;
+			/* fallback: byte immediate */
+			put_bits(&out, &len, &bitpos, 4, 0b1101);
+			put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
+			line_pos++;
+			out_bits += 12;
 		}
 		memcpy(last_lines[7], last_lines[6], line_len);
 		memcpy(last_lines[6], last_lines[5], line_len);
