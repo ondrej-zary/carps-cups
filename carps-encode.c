@@ -138,13 +138,13 @@ void encode_previous(char **data, u16 *len, u8 *bitpos, int count) {
 	encode_number(data, len, bitpos, count);
 }
 
-u16 encode_print_data(int max_lines, FILE *f, char *out) {
+u16 encode_print_data(int *num_lines, FILE *f, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
 	int line_num = 0;
-	fprintf(stderr, "max_lines=%d\n", max_lines);
+	fprintf(stderr, "num_lines=%d\n", *num_lines);
 
-	while (!feof(f) && line_num < max_lines) {
+	while (!feof(f) && line_num < *num_lines) {
 		fread(cur_line, 1, line_len, f);
 		fprintf(stderr, "line_num=%d\n", line_num);
 		line_pos = 0;
@@ -202,6 +202,8 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	fprintf(stderr, "%d unused bits\n", 8 - bitpos);
 	put_bits(&out, &len, &bitpos, 8 - bitpos, 0xff);
 
+	*num_lines = line_num;
+	
 	return len;
 }
 
@@ -211,7 +213,7 @@ void usage() {
 
 
 int main(int argc, char *argv[]) {
-	char buf[BUF_SIZE];
+	char buf[BUF_SIZE], buf2[BUF_SIZE];
 	struct carps_doc_info *info;
 	struct carps_print_params params;
 	char tmp[100];
@@ -305,8 +307,12 @@ int main(int argc, char *argv[]) {
 	/* print data */
 	while (!feof(f)) {
 		int num_lines = 65536 / line_len;
-		int ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", 4724, num_lines);
-		u16 len = encode_print_data(num_lines, f, buf + ofs + sizeof(struct carps_print_header));
+		int ofs;
+		/* encode print data first as we need the length and line count */
+		u16 len = encode_print_data(&num_lines, f, buf2);
+		/* strip header */
+		ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", 4724, num_lines);
+		/* print data header */
 		struct carps_print_header *ph = (void *)buf + ofs;
 		memset(ph, 0, sizeof(struct carps_print_header));
 		ph->one = 0x01;
@@ -316,6 +322,8 @@ int main(int argc, char *argv[]) {
 		ph->magic = 0x50;
 		ph->last = 1;
 		ph->data_len = cpu_to_le16(len);
+		/* copy print data after the headers */
+		memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
 		len = ofs + sizeof(struct carps_print_header) + len;
 		buf[len] = 0x80;	/* strip data end */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len + 1, stdout);
