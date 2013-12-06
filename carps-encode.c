@@ -64,7 +64,12 @@ u16 line_pos;
 
 int count_run_length(int pos) {
 	int i;
-	u8 first = cur_line[pos];
+	u8 first;
+
+	if (pos < 0)	/* will work only for -1 */
+		first = last_lines[0][line_len - pos + 1];
+	else
+		first = cur_line[pos];
 
 	for (i = pos + 1; i < line_len; i++)
 		if (cur_line[i] != first)
@@ -128,7 +133,7 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
-			if (line_pos > 0) {
+			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
 				int tmp = count_run_length(line_pos - 1);
 				fprintf(stderr, "run_len=%d\n", tmp);
 				if (tmp > 1) {
