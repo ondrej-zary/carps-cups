@@ -197,8 +197,10 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	/* block end marker */
 	fprintf(stderr, "block end\n");
 	put_bits(&out, &len, &bitpos, 8, 0b11111110);
+	/* fill unused bits in last byte */
+	put_bits(&out, &len, &bitpos, 8 - bitpos, 0b1);
 
-	return len + 1;
+	return len;
 }
 
 void usage() {
