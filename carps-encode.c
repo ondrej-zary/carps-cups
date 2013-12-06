@@ -197,8 +197,6 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	/* block end marker */
 	fprintf(stderr, "block end\n");
 	put_bits(&out, &len, &bitpos, 8, 0b11111110);
-	/* ending 0x80 byte */
-//	out[0] = 0x80;
 
 	return len + 1;
 }
@@ -292,7 +290,7 @@ int main(int argc, char *argv[]) {
 	strcat(buf, "\x1b%@");
 	strcat(buf, "\x1bP42;600;1J;ImgColor");	/* 600 dpi */
 	strcat(buf, "\x1b\\");
-	strcat(buf, "\x1b[[11h");
+	strcat(buf, "\x1b[11h");
 	strcat(buf, "\x1b[?7;600 I");
 	strcat(buf, "\x1b[20't");	/* plain paper */
 	strcat(buf, "\x1b[14;;;;;;p");
@@ -314,7 +312,9 @@ int main(int argc, char *argv[]) {
 		ph->magic = 0x50;
 		ph->last = 1;
 		ph->data_len = cpu_to_le16(len);
-		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, ofs + sizeof(struct carps_print_header) + len, stdout);
+		len = ofs + sizeof(struct carps_print_header) + len;
+		buf[len] = 0x80;	/* strip data end */
+		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len + 1, stdout);
 	}
 	fclose(f);
 	/* end of page */
