@@ -152,7 +152,7 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
 			/* previous line */
-			if (line_num > 4) {
+			if (line_num > 3) {
 				int count = count_previous(line_pos, 3);
 				fprintf(stderr, "previous [3] count=%d\n", count);
 				if (count > 1) {
@@ -197,8 +197,10 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	/* block end marker */
 	fprintf(stderr, "block end\n");
 	put_bits(&out, &len, &bitpos, 8, 0b11111110);
+	put_bits(&out, &len, &bitpos, 2, 0b00);
 	/* fill unused bits in last byte */
-	put_bits(&out, &len, &bitpos, 8 - bitpos, 0b1);
+	fprintf(stderr, "%d unused bits\n", 8 - bitpos);
+	put_bits(&out, &len, &bitpos, 8 - bitpos, 0xff);
 
 	return len;
 }
