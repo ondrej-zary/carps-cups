@@ -88,6 +88,29 @@ int count_previous(int pos, int num_last) {
 	return i - pos;
 }
 
+int dict_search(u8 byte, u8 *dict) {
+	for (int i = 0; i < DICT_SIZE; i++)
+		if (dict[i] == byte)
+			return i;
+
+	return -1;
+}
+
+void dict_add(u8 byte, u8 *dict) {
+	fprintf(stderr, "DICTIONARY=");
+	for (int i = 0; i < DICT_SIZE; i++)
+		fprintf(stderr, "%02X ", dict[i]);
+	fprintf(stderr, "\n");
+
+	for (int i = 0; i < DICT_SIZE; i++)
+		if (dict[i] == byte) {
+			memmove(dict + i, dict + i + 1, DICT_SIZE - i);
+			break;
+		}
+	memmove(dict + 1, dict, DICT_SIZE - 1);
+	dict[0] = byte;
+}
+
 int fls(unsigned int n) {
 	int i = 0;
 
@@ -138,11 +161,19 @@ void encode_previous(char **data, u16 *len, u8 *bitpos, int count) {
 	encode_number(data, len, bitpos, count);
 }
 
-u16 encode_print_data(int *num_lines, FILE *f, char *out) {
+void encode_dict(char **data, u16 *len, u8 *bitpos, u8 pos) {
+	put_bits(data, len, bitpos, 2, 0b10);
+	put_bits(data, len, bitpos, 4, ~pos & 0b1111);
+}
+
+u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
 	int line_num = 0;
 	fprintf(stderr, "num_lines=%d\n", *num_lines);
+	u8 dictionary[DICT_SIZE];
+
+	memset(dictionary, 0xaa, DICT_SIZE);
 
 	while (!feof(f) && line_num < *num_lines) {
 		fread(cur_line, 1, line_len, f);
@@ -165,22 +196,33 @@ u16 encode_print_data(int *num_lines, FILE *f, char *out) {
 			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
 				int count = count_run_length(line_pos - 1);
 				fprintf(stderr, "run_len=%d\n", count);
-				if (count > 1) {
+				if (count > 2) {
 					encode_last_bytes(&out, &len, &bitpos, count - 1);
 					line_pos += count - 1;
 					continue;
 				}
 			}
 
+			/* dictionary */
+			int pos = dict_search(cur_line[line_pos], dictionary);
+			if (pos >= 0) {
+				fprintf(stderr, "dict @%d\n", pos);
+				encode_dict(&out, &len, &bitpos, pos);
+				dict_add(cur_line[line_pos], dictionary);
+				line_pos++;
+				continue;
+			}
 			/* zero byte */
 			if (cur_line[line_pos] == 0x00) {
 				put_bits(&out, &len, &bitpos, 8, 0b11111101);
+				dict_add(0, dictionary);
 				line_pos++;
 				continue;
 			}
 			/* fallback: byte immediate */
 			put_bits(&out, &len, &bitpos, 4, 0b1101);
 			put_bits(&out, &len, &bitpos, 8, cur_line[line_pos]);
+			dict_add(cur_line[line_pos], dictionary);
 			line_pos++;
 		}
 		memcpy(last_lines[7], last_lines[6], line_len);
@@ -201,6 +243,13 @@ u16 encode_print_data(int *num_lines, FILE *f, char *out) {
 	/* fill unused bits in last byte */
 	fprintf(stderr, "%d unused bits\n", 8 - bitpos);
 	put_bits(&out, &len, &bitpos, 8 - bitpos, 0xff);
+
+	if (last) {
+		put_bits(&out, &len, &bitpos, 8, 0xfe);
+		put_bits(&out, &len, &bitpos, 8, 0x7f);
+		put_bits(&out, &len, &bitpos, 8, 0xff);
+		put_bits(&out, &len, &bitpos, 8, 0xff);
+	}
 
 	*num_lines = line_num;
 	
@@ -308,12 +357,14 @@ int main(int argc, char *argv[]) {
 	while (!feof(f) && height > 0) {
 		int num_lines = 65536 / line_len;
 		int ofs;
+		bool last = false;
 		if (num_lines > height) {
 			fprintf(stderr, "num_lines := %d\n", height);
 			num_lines = height;
+			last = true;
 		}
 		/* encode print data first as we need the length and line count */
-		u16 len = encode_print_data(&num_lines, f, buf2);
+		u16 len = encode_print_data(&num_lines, last, f, buf2);
 		/* strip header */
 		ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", 4724, num_lines);
 		/* print data header */
@@ -324,7 +375,7 @@ int main(int argc, char *argv[]) {
 		ph->four = 0x04;
 		ph->eight = 0x08;
 		ph->magic = 0x50;
-		ph->last = 1;
+		ph->last = last ? 0 : 1;
 		ph->data_len = cpu_to_le16(len);
 		/* copy print data after the headers */
 		memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
@@ -342,7 +393,7 @@ int main(int argc, char *argv[]) {
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, print_data_end, sizeof(print_data_end), stdout);
 	/* end of print data */
 	buf[0] = 1;
-	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, 1, stdout);
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_PRINT, buf, 1, stdout);
 	/* end 2 */
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_END2, NULL, 0, stdout);
 	/* end 1 */

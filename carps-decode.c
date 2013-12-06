@@ -156,7 +156,6 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 	return (1 << num_bits) + (~get_bits(data, len, bitpos, num_bits) & MASK(num_bits));
 }
 
-#define DICT_SIZE 16
 u8 last_lines[8][600], cur_line[600];
 int out_bytes = 0;
 u16 line_num = 0;

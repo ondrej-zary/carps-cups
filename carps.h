@@ -3,6 +3,8 @@
 
 #define ESC 0x1b
 
+#define DICT_SIZE 16
+
 //#define BUF_SIZE 4096
 #define BUF_SIZE 65536
 
