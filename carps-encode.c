@@ -78,6 +78,16 @@ int count_run_length(int pos) {
 	return i - pos;
 }
 
+int count_previous(int pos, int num_last) {
+	int i;
+
+	for (i = pos; i < line_len; i++)
+		if (cur_line[i] != last_lines[num_last][i])
+			break;
+
+	return i - pos;
+}
+
 int fls(unsigned int n) {
 	int i = 0;
 
@@ -120,6 +130,14 @@ void encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
 	encode_number(data, len, bitpos, count);
 }
 
+void encode_previous(char **data, u16 *len, u8 *bitpos, int count) {
+	if (count >= 128)
+		encode_prefix(data, len, bitpos, count);
+	count %= 128;
+	put_bits(data, len, bitpos, 1, 0b0);
+	encode_number(data, len, bitpos, count);
+}
+
 u16 encode_print_data(int max_lines, FILE *f, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
@@ -133,12 +151,23 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
+			/* previous line */
+			if (line_num > 4) {
+				int count = count_previous(line_pos, 3);
+				fprintf(stderr, "previous [3] count=%d\n", count);
+				if (count > 1) {
+					encode_previous(&out, &len, &bitpos, count);
+					line_pos += count;
+					continue;
+				}
+			}
+			/* run length */
 			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
-				int tmp = count_run_length(line_pos - 1);
-				fprintf(stderr, "run_len=%d\n", tmp);
-				if (tmp > 1) {
-					encode_last_bytes(&out, &len, &bitpos, tmp);
-					line_pos += tmp;
+				int count = count_run_length(line_pos - 1);
+				fprintf(stderr, "run_len=%d\n", count);
+				if (count > 1) {
+					encode_last_bytes(&out, &len, &bitpos, count - 1);
+					line_pos += count - 1;
 					continue;
 				}
 			}
@@ -166,11 +195,12 @@ u16 encode_print_data(int max_lines, FILE *f, char *out) {
 		line_num++;
 	}
 	/* block end marker */
+	fprintf(stderr, "block end\n");
 	put_bits(&out, &len, &bitpos, 8, 0b11111110);
 	/* ending 0x80 byte */
 //	out[0] = 0x80;
 
-	return len;
+	return len + 1;
 }
 
 void usage() {
@@ -207,6 +237,8 @@ int main(int argc, char *argv[]) {
 	sscanf(tmp, "%d %d", &width, &height);
 	fprintf(stderr, "width=%d height=%d\n", width, height);
 	line_len = width / 8;
+	if (line_len > 500)////////////////
+		line_len++;
 
 	/* document beginning */
 	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
