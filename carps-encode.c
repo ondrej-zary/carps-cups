@@ -305,9 +305,13 @@ int main(int argc, char *argv[]) {
 	strcat(buf, "\x1b[600;1;0;32;;64;0'c");
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 	/* print data */
-	while (!feof(f)) {
+	while (!feof(f) && height > 0) {
 		int num_lines = 65536 / line_len;
 		int ofs;
+		if (num_lines > height) {
+			fprintf(stderr, "num_lines := %d\n", height);
+			num_lines = height;
+		}
 		/* encode print data first as we need the length and line count */
 		u16 len = encode_print_data(&num_lines, f, buf2);
 		/* strip header */
@@ -327,6 +331,7 @@ int main(int argc, char *argv[]) {
 		len = ofs + sizeof(struct carps_print_header) + len;
 		buf[len] = 0x80;	/* strip data end */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len + 1, stdout);
+		height -= num_lines;
 	}
 	fclose(f);
 	/* end of page */
