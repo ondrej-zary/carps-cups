@@ -88,6 +88,16 @@ int count_previous(int pos, int num_last) {
 	return i - pos;
 }
 
+int count_this(int pos, int offset) {
+	int i;
+
+	for (i = pos; i < line_len; i++)
+		if (cur_line[i] != cur_line[i + offset])
+			break;
+
+	return i - pos;
+}
+
 int dict_search(u8 byte, u8 *dict) {
 	for (int i = 0; i < DICT_SIZE; i++)
 		if (dict[i] == byte)
@@ -166,6 +176,11 @@ void encode_dict(char **data, u16 *len, u8 *bitpos, u8 pos) {
 	put_bits(data, len, bitpos, 4, ~pos & 0b1111);
 }
 
+void encode_80(char **data, u16 *len, u8 *bitpos, int count) {
+	put_bits(data, len, bitpos, 5, 0b11110);
+	encode_number(data, len, bitpos, count);
+}
+
 u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
@@ -199,6 +214,16 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 				if (count > 2) {
 					encode_last_bytes(&out, &len, &bitpos, count - 1);
 					line_pos += count - 1;
+					continue;
+				}
+			}
+			/* this line @-80 */
+			if (line_pos >= 80) {
+				int count = count_this(line_pos, -80);
+				fprintf(stderr, "@-80=%d\n", count);
+				if (count > 1) {
+					encode_80(&out, &len, &bitpos, count);
+					line_pos += count;
 					continue;
 				}
 			}
