@@ -200,6 +200,16 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
+			/* this line @-80 */
+			if (line_pos >= 80) {
+				int count = count_this(line_pos, -80);
+				fprintf(stderr, "@-80=%d\n", count);
+				if (count > 1) {
+					encode_80(&out, &len, &bitpos, count);
+					line_pos += count;
+					continue;
+				}
+			}
 			/* previous line */
 			if (line_num > 3) {
 				int count3 = count_previous(line_pos, 3);
@@ -222,16 +232,17 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 						if (!prev8_flag)
 							prev8_flag_change = true;
 					} else {
-#define PREV8_THR 4
+
+#define PREV8_THR 10
 						if (prev8_flag) {
-							if (count3 >= count7 + PREV8_THR) {
+							if (count3 > count7 + PREV8_THR) {
 								prev8_flag_change = true;
 								count = count3;
 							} else {
 								count = count7;
 							}
 						} else {
-							if (count7 >= count3 + PREV8_THR) {
+							if (count7 > count3 + PREV8_THR) {
 								prev8_flag_change = true;
 								count = count7;
 							} else {
@@ -256,17 +267,6 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 					continue;
 				}
 			}
-			/* this line @-80 */
-			if (line_pos >= 80) {
-				int count = count_this(line_pos, -80);
-				fprintf(stderr, "@-80=%d\n", count);
-				if (count > 1) {
-					encode_80(&out, &len, &bitpos, count);
-					line_pos += count;
-					continue;
-				}
-			}
-
 			/* dictionary */
 			int pos = dict_search(cur_line[line_pos], dictionary);
 			if (pos >= 0) {
@@ -361,7 +361,8 @@ int main(int argc, char *argv[]) {
 	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
 	/* document info - title */
-	char *doc_title = "Untitled";
+//	char *doc_title = "Untitled";
+	char *doc_title = "screenshot.xcf";
 	info = (void *)buf;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
 	info->unknown = cpu_to_be16(0x11);
