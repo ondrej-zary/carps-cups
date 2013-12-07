@@ -204,6 +204,8 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 			if (line_num > 3) {
 				int count3 = count_previous(line_pos, 3);
 				int count7 = 0;
+				int count;
+				bool prev8_flag_change = false;
 				fprintf(stderr, "previous [3] count=%d\n", count3);
 				if (line_num > 7) {
 					count7 = count_previous(line_pos, 7);
@@ -211,29 +213,37 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 					
 				}
 				if (count3 > 1 || count7 > 1) {
-					if (prev8_flag) {
-						if (count7 >= count3) {
-							encode_previous(&out, &len, &bitpos, count7, 0);
-							line_pos += count7;
-							continue;
-						} else {
-							prev8_flag = !prev8_flag;
-							encode_previous(&out, &len, &bitpos, count3, 1);
-							line_pos += count3;
-							continue;
-						}
+					if (count3 > 1 && count7 < 2) {
+						count = count3;
+						if (prev8_flag)
+							prev8_flag_change = true;
+					} else if (count7 > 1 && count3 < 2) {
+						count = count7;
+						if (!prev8_flag)
+							prev8_flag_change = true;
 					} else {
-						if (count3 >= count7) {
-							encode_previous(&out, &len, &bitpos, count3, 0);
-							line_pos += count3;
-							continue;
+#define PREV8_THR 4
+						if (prev8_flag) {
+							if (count3 >= count7 + PREV8_THR) {
+								prev8_flag_change = true;
+								count = count3;
+							} else {
+								count = count7;
+							}
 						} else {
-							prev8_flag = !prev8_flag;
-							encode_previous(&out, &len, &bitpos, count7, 1);
-							line_pos += count7;
-							continue;
+							if (count7 >= count3 + PREV8_THR) {
+								prev8_flag_change = true;
+								count = count7;
+							} else {
+								count = count3;
+							}
 						}
 					}
+					encode_previous(&out, &len, &bitpos, count, prev8_flag_change);
+					if (prev8_flag_change)
+						prev8_flag = !prev8_flag;
+					line_pos += count;
+					continue;
 				}
 			}
 			/* run length */
