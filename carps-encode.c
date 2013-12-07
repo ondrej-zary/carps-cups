@@ -163,10 +163,12 @@ void encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
 	encode_number(data, len, bitpos, count);
 }
 
-void encode_previous(char **data, u16 *len, u8 *bitpos, int count) {
+void encode_previous(char **data, u16 *len, u8 *bitpos, int count, bool prev8_flag_change) {
 	if (count >= 128)
 		encode_prefix(data, len, bitpos, count);
 	count %= 128;
+	if (prev8_flag_change)
+		put_bits(data, len, bitpos, 3, 0b110);
 	put_bits(data, len, bitpos, 1, 0b0);
 	encode_number(data, len, bitpos, count);
 }
@@ -187,6 +189,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 	int line_num = 0;
 	fprintf(stderr, "num_lines=%d\n", *num_lines);
 	u8 dictionary[DICT_SIZE];
+	bool prev8_flag = false;
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 
@@ -199,12 +202,38 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
 			/* previous line */
 			if (line_num > 3) {
-				int count = count_previous(line_pos, 3);
-				fprintf(stderr, "previous [3] count=%d\n", count);
-				if (count > 1) {
-					encode_previous(&out, &len, &bitpos, count);
-					line_pos += count;
-					continue;
+				int count3 = count_previous(line_pos, 3);
+				int count7 = 0;
+				fprintf(stderr, "previous [3] count=%d\n", count3);
+				if (line_num > 7) {
+					count7 = count_previous(line_pos, 7);
+					fprintf(stderr, "previous [7] count=%d\n", count7);
+					
+				}
+				if (count3 > 1 || count7 > 1) {
+					if (prev8_flag) {
+						if (count7 >= count3) {
+							encode_previous(&out, &len, &bitpos, count7, 0);
+							line_pos += count7;
+							continue;
+						} else {
+							prev8_flag = !prev8_flag;
+							encode_previous(&out, &len, &bitpos, count3, 1);
+							line_pos += count3;
+							continue;
+						}
+					} else {
+						if (count3 >= count7) {
+							encode_previous(&out, &len, &bitpos, count3, 0);
+							line_pos += count3;
+							continue;
+						} else {
+							prev8_flag = !prev8_flag;
+							encode_previous(&out, &len, &bitpos, count7, 1);
+							line_pos += count7;
+							continue;
+						}
+					}
 				}
 			}
 			/* run length */
