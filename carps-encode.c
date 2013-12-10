@@ -130,57 +130,100 @@ int fls(unsigned int n) {
 	return i;
 }
 
-void encode_number(char **data, u16 *len, u8 *bitpos, int num) {
+int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
 	int num_bits; 
+	int bits = 0;
 	fprintf(stderr, "encode_number(%d)\n", num);
 
 	if (num == 1) {
 		put_bits(data, len, bitpos, 2, 0b00);
-		return;
+		return 2;
 	}
 
 	num_bits = fls(num);
 	fprintf(stderr, "num_bits=%d\n", num_bits);
-	if (num_bits == 1)
+	if (num_bits == 1) {
 		put_bits(data, len, bitpos, 2, 0b01);
-	else {
+		bits += 2;
+	} else {
 		put_bits(data, len, bitpos, num_bits - 1, 0xff);
 		put_bits(data, len, bitpos, 1, 0b0);
+		bits += num_bits;
 	}
 	put_bits(data, len, bitpos, num_bits, ~num & MASK(num_bits));
+	bits += num_bits;
+
+	return bits;
 }
 
-void encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
+int encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
 	put_bits(data, len, bitpos, 8, 0b11111100);
-	encode_number(data, len, bitpos, num / 128);
+
+	return 8 + encode_number(data, len, bitpos, num / 128);
 }
 
-void encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
+int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
+	int bits = 0;
+	int len2 = 0;
+	u8 bitpos2 = 0;
+
+	if (!len)
+		len = &len2;
+	if (!bitpos)
+		bitpos = &bitpos2;
+
 	if (count >= 128)
-		encode_prefix(data, len, bitpos, count);
+		bits += encode_prefix(data, len, bitpos, count);
 	count %= 128;
 	put_bits(data, len, bitpos, 4, 0b1110);
-	encode_number(data, len, bitpos, count);
+	bits += 4;
+
+	return bits + encode_number(data, len, bitpos, count);
 }
 
-void encode_previous(char **data, u16 *len, u8 *bitpos, int count, bool prev8_flag_change) {
+int encode_previous(char **data, u16 *len, u8 *bitpos, int count, bool prev8_flag_change) {
+	int bits = 0;
+	int len2 = 0;
+	u8 bitpos2 = 0;
+
+	if (!len)
+		len = &len2;
+	if (!bitpos)
+		bitpos = &bitpos2;
+
 	if (count >= 128)
-		encode_prefix(data, len, bitpos, count);
+		bits += encode_prefix(data, len, bitpos, count);
 	count %= 128;
-	if (prev8_flag_change)
+	if (prev8_flag_change) {
 		put_bits(data, len, bitpos, 3, 0b110);
+		bits += 3;
+		bits += 6;////penalty
+	}
 	put_bits(data, len, bitpos, 1, 0b0);
-	encode_number(data, len, bitpos, count);
+	bits += 1;
+
+	return bits + encode_number(data, len, bitpos, count);
 }
 
-void encode_dict(char **data, u16 *len, u8 *bitpos, u8 pos) {
+int encode_dict(char **data, u16 *len, u8 *bitpos, u8 pos) {
 	put_bits(data, len, bitpos, 2, 0b10);
 	put_bits(data, len, bitpos, 4, ~pos & 0b1111);
+
+	return 2 + 4;
 }
 
-void encode_80(char **data, u16 *len, u8 *bitpos, int count) {
+int encode_80(char **data, u16 *len, u8 *bitpos, int count) {
+	int len2 = 0;
+	u8 bitpos2 = 0;
+
+	if (!len)
+		len = &len2;
+	if (!bitpos)
+		bitpos = &bitpos2;
+
 	put_bits(data, len, bitpos, 5, 0b11110);
-	encode_number(data, len, bitpos, count);
+
+	return 5 + encode_number(data, len, bitpos, count);
 }
 
 u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
@@ -201,99 +244,76 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
 			int count_80 = 0, count_last = 0, count_prev3 = 0, count_prev7 = 0;
-			int count3_penalty = 0, count7_penalty = 0;
+			int bits_80 = 0, bits_last = 0, bits_prev3 = 0, bits_prev7 = 0;
+			unsigned int data_80 = 0, data_last = 0, data_prev3 = 0, data_prev7 = 0;
+			int ratio_80, ratio_last, ratio_prev3, ratio_prev7;
+			void *p;
 
-			if (line_pos >= 80)
+			if (line_pos >= 80) {
 				count_80 = count_this(line_pos, -80);
-			if (line_num > 0 || line_pos > 0)	/* prevent -1 on first line */
+				if (count_80 > 1) {
+					p = &data_80;
+					bits_80 = encode_80(&p, NULL, NULL, count_80);
+				}
+			}
+			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
 				count_last = count_run_length(line_pos - 1) - 1;
-			if (line_num > 3)
+				if (count_last > 1) {
+					p = &data_last;
+					bits_last = encode_last_bytes(&p, NULL, NULL, count_last);
+				}
+			}
+			if (line_num > 3) {
 				count_prev3 = count_previous(line_pos, 3);
-			if (line_num > 7)
+				if (count_prev3 > 1) {
+					p = &data_prev3;
+					bits_prev3 = encode_previous(&p, NULL, NULL, count_prev3, prev8_flag);
+				}
+			}
+			if (line_num > 7) {
 				count_prev7 = count_previous(line_pos, 7);
+				if (count_prev7 > 1) {
+					p = &data_prev7;
+					bits_prev7 = encode_previous(&p, NULL, NULL, count_prev7, !prev8_flag);
+				}
+			}
 
-			if (count_80 < 1)
-				count_80 = -9999;
-			if (count_last < 1)
-				count_last = -9999;
-			if (count_prev3 < 2)
-				count_prev3 = -9999;
-			if (count_prev7 < 2)
-				count_prev7 = -9999;
+			ratio_80 = bits_80 ? count_80*8/bits_80 : 0;
+			ratio_last = bits_last ? count_last*8/bits_last : 0;
+			ratio_prev3 = bits_prev3 ? count_prev3*8/bits_prev3 : 0;
+			ratio_prev7 = bits_prev7 ? count_prev7*8/bits_prev7 : 0;
 
-			fprintf(stderr, "@-80=%d\n", count_80);
-			fprintf(stderr, "run_len=%d\n", count_last);
-			fprintf(stderr, "previous [3] count=%d\n", count_prev3);
-			fprintf(stderr, "previous [7] count=%d\n", count_prev7);
-/*			if (prev8_flag)
-				count3_penalty = 1;
-			else
-				count7_penalty = 1;
-			count_prev3 -= count3_penalty;
-			count_prev7 -= count7_penalty;*/
-#define COUNT_80_PENALTY 0
-			count_80 -= COUNT_80_PENALTY;
-#define LAST_PENALTY	2
-			count_last -= LAST_PENALTY;
-			fprintf(stderr, "after penalties:\n");
-			fprintf(stderr, "@-80=%d\n", count_80);
-			fprintf(stderr, "run_len=%d\n", count_last);
-			fprintf(stderr, "previous [3] count=%d\n", count_prev3);
-			fprintf(stderr, "previous [7] count=%d\n", count_prev7);
+			fprintf(stderr, "@-80=%d, %d bits, ratio=%d\n", count_80, bits_80, ratio_80);
+			fprintf(stderr, "run_len=%d, %d bits, ratio=%d\n", count_last, bits_last, ratio_last);
+			fprintf(stderr, "previous [3] count=%d, %d bits, ratio=%d\n", count_prev3, bits_prev3, ratio_prev3);
+			fprintf(stderr, "previous [7] count=%d, %d bits, ratio=%d\n", count_prev7, bits_prev7, ratio_prev7);
 
-			if (count_80 > 1-COUNT_80_PENALTY && count_80 >= count_last && count_80 >= count_prev3 && count_80 >= count_prev7) {
-				count_80 += COUNT_80_PENALTY;
+			if (ratio_80 > 0 && ratio_80 >= ratio_last && ratio_80 >= ratio_prev3 && ratio_80 >= ratio_prev7) {
 				encode_80(&out, &len, &bitpos, count_80);
 				line_pos += count_80;
 				continue;
 			}
 
-			if (count_last > 1 - LAST_PENALTY && count_last >= count_80 && count_last > count_prev3 && count_last > count_prev7) {
-				count_last += LAST_PENALTY;
+			if (ratio_last > 0 && ratio_last >= ratio_80 && ratio_last >= ratio_prev3 && ratio_last >= ratio_prev7) {
 				encode_last_bytes(&out, &len, &bitpos, count_last);
 				line_pos += count_last;
 				continue;
 			}
 
-			count_prev3 += count3_penalty;
-			count_prev7 += count7_penalty;
-			bool prev8_flag_change = false;
-			int count;
-			if (count_prev3 > 1 || count_prev7 > 1) {
-				if (count_prev3 > 1 && count_prev7 < 2) {
-					count = count_prev3;
-					if (prev8_flag)
-						prev8_flag_change = true;
-				} else if (count_prev7 > 1 && count_prev3 < 2) {
-					count = count_prev7;
-					if (!prev8_flag)
-						prev8_flag_change = true;
-				} else {
-#define PREV8_THR 10
-					if (prev8_flag) {
-						if (count_prev3 > count_prev7 + PREV8_THR) {
-							prev8_flag_change = true;
-							count = count_prev3;
-						} else {
-							count = count_prev7;
-						}
-					} else {
-						if (count_prev7 > count_prev3 + PREV8_THR) {
-							prev8_flag_change = true;
-							count = count_prev7;
-						} else {
-							count = count_prev3;
-						}
-					}
-				}
-//				if (!prev8_flag_change || count >= 4) { /* don't change flag if count is not at least 4 */
-				{
-					encode_previous(&out, &len, &bitpos, count, prev8_flag_change);
-					if (prev8_flag_change)
-						prev8_flag = !prev8_flag;
-					line_pos += count;
-					continue;
-				}
+			if (ratio_prev3 > 0 && ratio_prev3 >= ratio_prev7) {
+				encode_previous(&out, &len, &bitpos, count_prev3, prev8_flag);
+				if (prev8_flag)
+					prev8_flag = !prev8_flag;
+				line_pos += count_prev3;
+				continue;
+			}
+
+			if (ratio_prev7 > 0 && ratio_prev7 >= ratio_prev3) {
+				encode_previous(&out, &len, &bitpos, count_prev7, !prev8_flag);
+				if (!prev8_flag)
+					prev8_flag = !prev8_flag;
+				line_pos += count_prev7;
+				continue;
 			}
 
 			/* dictionary */
