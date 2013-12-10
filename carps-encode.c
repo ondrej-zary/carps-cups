@@ -200,56 +200,94 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
-			/* this line @-80 */
-			if (line_pos >= 80) {
-				int count = count_this(line_pos, -80);
-				fprintf(stderr, "@-80=%d\n", count);
-				if (count > 1) {
-					encode_80(&out, &len, &bitpos, count);
-					line_pos += count;
-					continue;
-				}
-			}
-			/* previous line */
-			if (line_num > 3) {
-				int count3 = count_previous(line_pos, 3);
-				int count7 = 0;
-				int count;
-				bool prev8_flag_change = false;
-				fprintf(stderr, "previous [3] count=%d\n", count3);
-				if (line_num > 7) {
-					count7 = count_previous(line_pos, 7);
-					fprintf(stderr, "previous [7] count=%d\n", count7);
-					
-				}
-				if (count3 > 1 || count7 > 1) {
-					if (count3 > 1 && count7 < 2) {
-						count = count3;
-						if (prev8_flag)
-							prev8_flag_change = true;
-					} else if (count7 > 1 && count3 < 2) {
-						count = count7;
-						if (!prev8_flag)
-							prev8_flag_change = true;
-					} else {
+			int count_80 = 0, count_last = 0, count_prev3 = 0, count_prev7 = 0;
+			int count3_penalty = 0, count7_penalty = 0;
 
+			if (line_pos >= 80)
+				count_80 = count_this(line_pos, -80);
+			if (line_num > 0 || line_pos > 0)	/* prevent -1 on first line */
+				count_last = count_run_length(line_pos - 1) - 1;
+			if (line_num > 3)
+				count_prev3 = count_previous(line_pos, 3);
+			if (line_num > 7)
+				count_prev7 = count_previous(line_pos, 7);
+
+			if (count_80 < 1)
+				count_80 = -9999;
+			if (count_last < 1)
+				count_last = -9999;
+			if (count_prev3 < 2)
+				count_prev3 = -9999;
+			if (count_prev7 < 2)
+				count_prev7 = -9999;
+
+			fprintf(stderr, "@-80=%d\n", count_80);
+			fprintf(stderr, "run_len=%d\n", count_last);
+			fprintf(stderr, "previous [3] count=%d\n", count_prev3);
+			fprintf(stderr, "previous [7] count=%d\n", count_prev7);
+/*			if (prev8_flag)
+				count3_penalty = 1;
+			else
+				count7_penalty = 1;
+			count_prev3 -= count3_penalty;
+			count_prev7 -= count7_penalty;*/
+#define COUNT_80_PENALTY 0
+			count_80 -= COUNT_80_PENALTY;
+#define LAST_PENALTY	2
+			count_last -= LAST_PENALTY;
+			fprintf(stderr, "after penalties:\n");
+			fprintf(stderr, "@-80=%d\n", count_80);
+			fprintf(stderr, "run_len=%d\n", count_last);
+			fprintf(stderr, "previous [3] count=%d\n", count_prev3);
+			fprintf(stderr, "previous [7] count=%d\n", count_prev7);
+
+			if (count_80 > 1-COUNT_80_PENALTY && count_80 >= count_last && count_80 >= count_prev3 && count_80 >= count_prev7) {
+				count_80 += COUNT_80_PENALTY;
+				encode_80(&out, &len, &bitpos, count_80);
+				line_pos += count_80;
+				continue;
+			}
+
+			if (count_last > 1 - LAST_PENALTY && count_last >= count_80 && count_last > count_prev3 && count_last > count_prev7) {
+				count_last += LAST_PENALTY;
+				encode_last_bytes(&out, &len, &bitpos, count_last);
+				line_pos += count_last;
+				continue;
+			}
+
+			count_prev3 += count3_penalty;
+			count_prev7 += count7_penalty;
+			bool prev8_flag_change = false;
+			int count;
+			if (count_prev3 > 1 || count_prev7 > 1) {
+				if (count_prev3 > 1 && count_prev7 < 2) {
+					count = count_prev3;
+					if (prev8_flag)
+						prev8_flag_change = true;
+				} else if (count_prev7 > 1 && count_prev3 < 2) {
+					count = count_prev7;
+					if (!prev8_flag)
+						prev8_flag_change = true;
+				} else {
 #define PREV8_THR 10
-						if (prev8_flag) {
-							if (count3 > count7 + PREV8_THR) {
-								prev8_flag_change = true;
-								count = count3;
-							} else {
-								count = count7;
-							}
+					if (prev8_flag) {
+						if (count_prev3 > count_prev7 + PREV8_THR) {
+							prev8_flag_change = true;
+							count = count_prev3;
 						} else {
-							if (count7 > count3 + PREV8_THR) {
-								prev8_flag_change = true;
-								count = count7;
-							} else {
-								count = count3;
-							}
+							count = count_prev7;
+						}
+					} else {
+						if (count_prev7 > count_prev3 + PREV8_THR) {
+							prev8_flag_change = true;
+							count = count_prev7;
+						} else {
+							count = count_prev3;
 						}
 					}
+				}
+//				if (!prev8_flag_change || count >= 4) { /* don't change flag if count is not at least 4 */
+				{
 					encode_previous(&out, &len, &bitpos, count, prev8_flag_change);
 					if (prev8_flag_change)
 						prev8_flag = !prev8_flag;
@@ -257,16 +295,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 					continue;
 				}
 			}
-			/* run length */
-			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
-				int count = count_run_length(line_pos - 1);
-				fprintf(stderr, "run_len=%d\n", count);
-				if (count > 2) {
-					encode_last_bytes(&out, &len, &bitpos, count - 1);
-					line_pos += count - 1;
-					continue;
-				}
-			}
+
 			/* dictionary */
 			int pos = dict_search(cur_line[line_pos], dictionary);
 			if (pos >= 0) {
