@@ -162,7 +162,7 @@ int encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
 	return 8 + encode_number(data, len, bitpos, num / 128);
 }
 
-int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
+int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count, bool twobyte_flag_change) {
 	int bits = 0;
 	int len2 = 0;
 	u8 bitpos2 = 0;
@@ -175,6 +175,11 @@ int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count) {
 	if (count >= 128)
 		bits += encode_prefix(data, len, bitpos, count);
 	count %= 128;
+	if (twobyte_flag_change) {
+		put_bits(data, len, bitpos, 2, 0b11);
+		bits += 2;
+		bits += 6;////penalty
+	}
 	put_bits(data, len, bitpos, 4, 0b1110);
 	bits += 4;
 
@@ -233,6 +238,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 	fprintf(stderr, "num_lines=%d\n", *num_lines);
 	u8 dictionary[DICT_SIZE];
 	bool prev8_flag = false;
+	bool twobyte_flag = false;
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 
@@ -243,10 +249,10 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 
 		while (line_pos < line_len) {
 			fprintf(stderr, "line_pos=%d: ", line_pos);
-			int count_80 = 0, count_last = 0, count_prev3 = 0, count_prev7 = 0;
-			int bits_80 = 0, bits_last = 0, bits_prev3 = 0, bits_prev7 = 0;
-			unsigned int data_80 = 0, data_last = 0, data_prev3 = 0, data_prev7 = 0;
-			int ratio_80, ratio_last, ratio_prev3, ratio_prev7;
+			int count_80 = 0, count_2, count_last = 0, count_prev3 = 0, count_prev7 = 0;
+			int bits_80 = 0, bits_2 = 0, bits_last = 0, bits_prev3 = 0, bits_prev7 = 0;
+			unsigned int data_80 = 0, data_2, data_last = 0, data_prev3 = 0, data_prev7 = 0;
+			int ratio_80, ratio_2, ratio_last, ratio_prev3, ratio_prev7;
 			void *p;
 
 			if (line_pos >= 80) {
@@ -256,11 +262,18 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 					bits_80 = encode_80(&p, NULL, NULL, count_80);
 				}
 			}
+			if (line_pos >= 2) {
+				count_2 = count_this(line_pos, -2);
+				if (count_2 > 1) {
+					p = &data_2;
+					bits_2 = encode_last_bytes(&p, NULL, NULL, count_2, !twobyte_flag);
+				}
+			}
 			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
 				count_last = count_run_length(line_pos - 1) - 1;
 				if (count_last > 1) {
 					p = &data_last;
-					bits_last = encode_last_bytes(&p, NULL, NULL, count_last);
+					bits_last = encode_last_bytes(&p, NULL, NULL, count_last, twobyte_flag);
 				}
 			}
 			if (line_num > 3) {
@@ -279,23 +292,35 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 			}
 
 			ratio_80 = bits_80 ? count_80*8/bits_80 : 0;
+			ratio_2 = bits_2 ? count_2*8/bits_2 : 0;
 			ratio_last = bits_last ? count_last*8/bits_last : 0;
 			ratio_prev3 = bits_prev3 ? count_prev3*8/bits_prev3 : 0;
 			ratio_prev7 = bits_prev7 ? count_prev7*8/bits_prev7 : 0;
 
 			fprintf(stderr, "@-80=%d, %d bits, ratio=%d\n", count_80, bits_80, ratio_80);
+			fprintf(stderr, "@-2=%d, %d bits, ratio=%d\n", count_2, bits_2, ratio_2);
 			fprintf(stderr, "run_len=%d, %d bits, ratio=%d\n", count_last, bits_last, ratio_last);
 			fprintf(stderr, "previous [3] count=%d, %d bits, ratio=%d\n", count_prev3, bits_prev3, ratio_prev3);
 			fprintf(stderr, "previous [7] count=%d, %d bits, ratio=%d\n", count_prev7, bits_prev7, ratio_prev7);
 
-			if (ratio_80 > 0 && ratio_80 >= ratio_last && ratio_80 >= ratio_prev3 && ratio_80 >= ratio_prev7) {
+			if (ratio_80 > 0 && ratio_80 >= ratio_2 && ratio_80 >= ratio_last && ratio_80 >= ratio_prev3 && ratio_80 >= ratio_prev7) {
 				encode_80(&out, &len, &bitpos, count_80);
 				line_pos += count_80;
 				continue;
 			}
 
-			if (ratio_last > 0 && ratio_last >= ratio_80 && ratio_last >= ratio_prev3 && ratio_last >= ratio_prev7) {
-				encode_last_bytes(&out, &len, &bitpos, count_last);
+			if (ratio_2 > 0 && ratio_2 >= ratio_80 && ratio_2 >= ratio_last && ratio_2 >= ratio_prev3 && ratio_2 >= ratio_prev7) {
+				encode_last_bytes(&out, &len, &bitpos, count_2, !twobyte_flag);
+				if (!twobyte_flag)
+					twobyte_flag = true;
+				line_pos += count_2;
+				continue;
+			}
+
+			if (ratio_last > 0 && ratio_last >= ratio_80 && ratio_last >= ratio_2 && ratio_last >= ratio_prev3 && ratio_last >= ratio_prev7) {
+				encode_last_bytes(&out, &len, &bitpos, count_last, twobyte_flag);
+				if (twobyte_flag)
+					twobyte_flag = false;
 				line_pos += count_last;
 				continue;
 			}
@@ -303,7 +328,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 			if (ratio_prev3 > 0 && ratio_prev3 >= ratio_prev7) {
 				encode_previous(&out, &len, &bitpos, count_prev3, prev8_flag);
 				if (prev8_flag)
-					prev8_flag = !prev8_flag;
+					prev8_flag = false;
 				line_pos += count_prev3;
 				continue;
 			}
@@ -311,7 +336,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 			if (ratio_prev7 > 0 && ratio_prev7 >= ratio_prev3) {
 				encode_previous(&out, &len, &bitpos, count_prev7, !prev8_flag);
 				if (!prev8_flag)
-					prev8_flag = !prev8_flag;
+					prev8_flag = true;
 				line_pos += count_prev7;
 				continue;
 			}
