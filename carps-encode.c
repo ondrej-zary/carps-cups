@@ -5,6 +5,8 @@
 #include <strings.h>
 #include "carps.h"
 
+int global_line_num = 0;
+
 void fill_header(struct carps_header *header, u8 data_type, u8 block_type, u16 data_len) {
 	memset(header, 0, sizeof(struct carps_header));
 	header->magic1 = 0xCD;
@@ -88,12 +90,15 @@ int count_previous(int pos, int num_last) {
 	return i - pos;
 }
 
-int count_this(int pos, int offset) {
+int count_this(int pos, int offset, int max) {
 	int i;
 
 	for (i = pos; i < line_len; i++)
 		if (cur_line[i] != cur_line[i + offset])
 			break;
+
+	if (max && i - pos > max)
+		return max;
 
 	return i - pos;
 }
@@ -244,7 +249,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 
 	while (!feof(f) && line_num < *num_lines) {
 		fread(cur_line, 1, line_len, f);
-		fprintf(stderr, "line_num=%d\n", line_num);
+		fprintf(stderr, "line_num=%d (global=%d)\n", line_num, global_line_num);
 		line_pos = 0;
 
 		while (line_pos < line_len) {
@@ -256,14 +261,14 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 			void *p;
 
 			if (line_pos >= 80) {
-				count_80 = count_this(line_pos, -80);
+				count_80 = count_this(line_pos, -80, 127); /* does not use prefix: 127 is max */
 				if (count_80 > 1) {
 					p = &data_80;
 					bits_80 = encode_80(&p, NULL, NULL, count_80);
 				}
 			}
 			if (line_pos >= 2) {
-				count_2 = count_this(line_pos, -2);
+				count_2 = count_this(line_pos, -2, 0);
 				if (count_2 > 1) {
 					p = &data_2;
 					bits_2 = encode_last_bytes(&p, NULL, NULL, count_2, !twobyte_flag);
@@ -373,6 +378,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 		memcpy(last_lines[0], cur_line, line_len);
 		line_pos = 0;
 		line_num++;
+		global_line_num++;
 	}
 	/* block end marker */
 	fprintf(stderr, "block end\n");
