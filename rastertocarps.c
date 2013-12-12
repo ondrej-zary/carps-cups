@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <cups/raster.h>
 #include "carps.h"
 
 int global_line_num = 0;
@@ -236,7 +240,7 @@ int encode_80(char **data, u16 *len, u8 *bitpos, int count) {
 	return 5 + encode_number(data, len, bitpos, count);
 }
 
-u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
+u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
 	int line_num = 0;
@@ -248,7 +252,11 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 	memset(dictionary, 0xaa, DICT_SIZE);
 
 	while (!feof(f) && line_num < *num_lines) {
-		fread(cur_line, 1, line_len, f);
+		if (ras) {
+			if (cupsRasterReadPixels(ras, cur_line, line_len) == 0)
+				break;
+		} else
+			fread(cur_line, 1, line_len, f);
 		fprintf(stderr, "line_num=%d (global=%d)\n", line_num, global_line_num);
 		line_pos = 0;
 
@@ -400,42 +408,92 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, char *out) {
 	return len;
 }
 
-void usage() {
-	printf("usage: carps-encode <file.pbm>\n");
+int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
+	int num_lines = 65536 / line_len;
+	int ofs;
+	bool last = false;
+	char buf[BUF_SIZE], buf2[BUF_SIZE];
+	
+	if (num_lines > height) {
+		fprintf(stderr, "num_lines := %d\n", height);
+		num_lines = height;
+		last = true;
+	}
+	/* encode print data first as we need the length and line count */
+	u16 len = encode_print_data(&num_lines, last, f, ras, buf2);
+	/* strip header */
+	ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", 4724, num_lines);
+	/* print data header */
+	struct carps_print_header *ph = (void *)buf + ofs;
+	memset(ph, 0, sizeof(struct carps_print_header));
+	ph->one = 0x01;
+	ph->two = 0x02;
+	ph->four = 0x04;
+	ph->eight = 0x08;
+	ph->magic = 0x50;
+	ph->last = last ? 0 : 1;
+	ph->data_len = cpu_to_le16(len);
+	/* copy print data after the headers */
+	memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
+	len = ofs + sizeof(struct carps_print_header) + len;
+	buf[len] = 0x80;	/* strip data end */
+	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len + 1, stdout);
+
+	return num_lines;
 }
 
-
 int main(int argc, char *argv[]) {
-	char buf[BUF_SIZE], buf2[BUF_SIZE];
+	char buf[BUF_SIZE];
 	struct carps_doc_info *info;
 	struct carps_print_params params;
 	char tmp[100];
 	int width, height;
+	bool pbm_mode = false;
+	FILE *f;
+	cups_raster_t *ras = NULL;
+	cups_page_header2_t page_header;
+	unsigned int page = 0;
+	int fd;
 
-	if (argc < 2) {
-		usage();
+	if (argc < 2 || argc == 3 || argc == 4 || argc == 5 || argc > 7) {
+		fprintf(stderr, "usage: rastertocarps <file.pbm>\n");
+		fprintf(stderr, "usage: rastertocarps job-id user title copies options [file]\n");
 		return 1;
 	}
 
-	FILE *f = fopen(argv[1], "r");
-	if (!f) {
-		perror("Unable to open file");
-		return 2;
-	}
+	if (argc < 3)
+		pbm_mode = true;
 
-	fgets(tmp, sizeof(tmp), f);
-	if (strcmp(tmp, "P4\n")) {
-		fprintf(stderr, "Invalid PBM file\n");
-		return 2;
-	}
-	do
+	if (pbm_mode) {
+		f = fopen(argv[1], "r");
+		if (!f) {
+			perror("Unable to open file");
+			return 2;
+		}
+
 		fgets(tmp, sizeof(tmp), f);
-	while (tmp[0] == '#');
-	sscanf(tmp, "%d %d", &width, &height);
-	fprintf(stderr, "width=%d height=%d\n", width, height);
-	line_len = width / 8;
-	if (line_len > 500)////////////////
-		line_len++;
+		if (strcmp(tmp, "P4\n")) {
+			fprintf(stderr, "Invalid PBM file\n");
+			return 2;
+		}
+		do
+			fgets(tmp, sizeof(tmp), f);
+		while (tmp[0] == '#');
+		sscanf(tmp, "%d %d", &width, &height);
+		fprintf(stderr, "width=%d height=%d\n", width, height);
+		line_len = width / 8;
+		if (line_len > 500)////////////////
+			line_len++;
+	} else {
+		if (argc > 6) {
+			if ((fd = open(argv[6], O_RDONLY)) == -1) {
+				perror("ERROR: Unable to open raster file - ");
+				return 1;
+			}
+		} else
+			fd = 0;
+		ras = cupsRasterOpen(fd, CUPS_RASTER_READ);
+	}
 
 	/* document beginning */
 	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -498,38 +556,32 @@ int main(int argc, char *argv[]) {
 	strcat(buf, "\x1b[1v");	/* 1 copy */
 	strcat(buf, "\x1b[600;1;0;32;;64;0'c");
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
-	/* print data */
-	while (!feof(f) && height > 0) {
-		int num_lines = 65536 / line_len;
-		int ofs;
-		bool last = false;
-		if (num_lines > height) {
-			fprintf(stderr, "num_lines := %d\n", height);
-			num_lines = height;
-			last = true;
+
+	if (!pbm_mode) {
+		while (cupsRasterReadHeader2(ras, &page_header)) {
+			/* setup this page */
+			page++;
+			fprintf(stderr, "PAGE: %d %d\n", page, page_header.NumCopies);
+
+			line_len = page_header.cupsBytesPerLine;
+			height = page_header.cupsHeight;
+
+			/* read raster data */
+			while (height > 0) {
+				height -= encode_print_block(height, NULL, ras);
+			}
+			/* finish this page */
 		}
-		/* encode print data first as we need the length and line count */
-		u16 len = encode_print_data(&num_lines, last, f, buf2);
-		/* strip header */
-		ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", 4724, num_lines);
-		/* print data header */
-		struct carps_print_header *ph = (void *)buf + ofs;
-		memset(ph, 0, sizeof(struct carps_print_header));
-		ph->one = 0x01;
-		ph->two = 0x02;
-		ph->four = 0x04;
-		ph->eight = 0x08;
-		ph->magic = 0x50;
-		ph->last = last ? 0 : 1;
-		ph->data_len = cpu_to_le16(len);
-		/* copy print data after the headers */
-		memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
-		len = ofs + sizeof(struct carps_print_header) + len;
-		buf[len] = 0x80;	/* strip data end */
-		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len + 1, stdout);
-		height -= num_lines;
+	} else {
+		/* print data */
+		while (!feof(f) && height > 0) {
+			height -= encode_print_block(height, f, NULL);
+		}
 	}
-	fclose(f);
+	if (pbm_mode)
+		fclose(f);
+	else
+		cupsRasterClose(ras);
 	/* end of page */
 	u8 page_end[] = { 0x01, 0x0c };
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
