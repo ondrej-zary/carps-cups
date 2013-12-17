@@ -50,6 +50,8 @@ const char *bin(u8 x) {
     return bin_n(x, 8);
 }
 
+long block_pos;
+
 #define NO_HEADER 	(1 << 0)
 int get_block(u8 *buf, FILE *f, int flags) {
 	u8 *data;
@@ -82,6 +84,9 @@ int get_block(u8 *buf, FILE *f, int flags) {
 		len -= 1;
 	} else
 		data = buf + sizeof(struct carps_header);
+
+	block_pos = ftell(f);
+
 	if (fread(data, 1, len, f) != len) {
 		perror("Error reading file");
 		return -3;
@@ -239,6 +244,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	bool twobyte_flag = false, prev8_flag = false;
 	char tmp[TMP_BUFLEN];
 	int width, height;
+
+	u8 *start = data;
 	
 	memset(dictionary, 0xaa, DICT_SIZE);
 	
@@ -342,7 +349,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	printf("\n");*/
 
 	while (len) {
-		printf("out_pos: 0x%x, line_num=%d, line_pos=%d (%d), len=%d ", out_bytes, line_num, line_pos, line_pos * 8, len);
+		printf("out_pos: 0x%x, line_num=%d, line_pos=%d (%d), len=%d, in_pos=0x%x ", out_bytes, line_num, line_pos, line_pos * 8, len, block_pos + data - start);
 
 		u8 bits = get_bits(&data, &len, &bitpos, 1);
 		if (bits) { /* 1 */
