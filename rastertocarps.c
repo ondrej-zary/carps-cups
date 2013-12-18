@@ -9,7 +9,19 @@
 #include <cups/raster.h>
 #include "carps.h"
 
-int global_line_num = 0;
+//#define DEBUG
+
+#define ERR(fmt, args ...)	fprintf(stderr, "ERROR: CARPS " fmt "\n", ##args);
+#define WARN(fmt, args ...)	fprintf(stderr, "WARNING: CARPS " fmt "\n", ##args);
+
+#ifdef DEBUG
+//#define DBG(fmt, args ...)	fprintf(stderr, "DEBUG: CARPS " fmt "\n", ##args);
+#define DBG(fmt, args ...)	fprintf(stderr, fmt, ##args);
+#else
+#define DBG(fmt, args ...)	do {} while (0)
+#endif
+
+int global_line_num = 0, global_outpos = 0;
 
 void fill_header(struct carps_header *header, u8 data_type, u8 block_type, u16 data_len) {
 	memset(header, 0, sizeof(struct carps_header));
@@ -28,6 +40,7 @@ void write_block(u8 data_type, u8 block_type, void *data, u16 data_len, FILE *st
 	fill_header(&header, data_type, block_type, data_len);
 	fwrite(&header, 1, sizeof(header), stream);
 	fwrite(data, 1, data_len, stream);
+	global_outpos += sizeof(header) + data_len;
 }
 
 const char *bin_n(u8 x, u8 n) {
@@ -42,7 +55,7 @@ const char *bin_n(u8 x, u8 n) {
 
 /* put n bits of data */
 void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
-	fprintf(stderr, "put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));
+	DBG("put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));
 	bits <<= 8 - n;
 //	printf("put_bits2 len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, 8));
 	for (int i = 0; i < n; i++) {
@@ -65,7 +78,7 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 }
 
 u16 line_len;
-u8 last_lines[8][600], cur_line[600];
+u8 last_lines[8][1000], cur_line[1000];///////////
 u16 line_pos;
 
 int count_run_length(int pos) {
@@ -116,10 +129,10 @@ int dict_search(u8 byte, u8 *dict) {
 }
 
 void dict_add(u8 byte, u8 *dict) {
-	fprintf(stderr, "DICTIONARY=");
-	for (int i = 0; i < DICT_SIZE; i++)
-		fprintf(stderr, "%02X ", dict[i]);
-	fprintf(stderr, "\n");
+//	DBG("DICTIONARY=");
+//	for (int i = 0; i < DICT_SIZE; i++)
+//		DBG("%02X ", dict[i]);
+//	DBG("\n");
 
 	for (int i = 0; i < DICT_SIZE; i++)
 		if (dict[i] == byte) {
@@ -142,7 +155,12 @@ int fls(unsigned int n) {
 int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
 	int num_bits; 
 	int bits = 0;
-	fprintf(stderr, "encode_number(%d)\n", num);
+	DBG("encode_number(%d)\n", num);
+
+	if (num == 0) {
+		put_bits(data, len, bitpos, 6, 0b111111);
+		return 6;
+	}
 
 	if (num == 1) {
 		put_bits(data, len, bitpos, 2, 0b00);
@@ -150,7 +168,7 @@ int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
 	}
 
 	num_bits = fls(num);
-	fprintf(stderr, "num_bits=%d\n", num_bits);
+	DBG("num_bits=%d\n", num_bits);
 	if (num_bits == 1) {
 		put_bits(data, len, bitpos, 2, 0b01);
 		bits += 2;
@@ -211,7 +229,7 @@ int encode_previous(char **data, u16 *len, u8 *bitpos, int count, bool prev8_fla
 	if (prev8_flag_change) {
 		put_bits(data, len, bitpos, 3, 0b110);
 		bits += 3;
-		bits += 6;////penalty
+		bits += 7;////penalty
 	}
 	put_bits(data, len, bitpos, 1, 0b0);
 	bits += 1;
@@ -244,24 +262,26 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	u8 bitpos = 0;
 	u16 len = 0;
 	int line_num = 0;
-	fprintf(stderr, "num_lines=%d\n", *num_lines);
+	DBG("num_lines=%d\n", *num_lines);
 	u8 dictionary[DICT_SIZE];
 	bool prev8_flag = false;
 	bool twobyte_flag = false;
+	char *start = out;
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 
-	while (!feof(f) && line_num < *num_lines) {
+	while ( ( (f && !feof(f)) || (ras) ) && line_num < *num_lines) {
 		if (ras) {
+			DBG("cupsRasterReadPixels(%p, %p, %d)\n", ras, cur_line, line_len);
 			if (cupsRasterReadPixels(ras, cur_line, line_len) == 0)
 				break;
 		} else
 			fread(cur_line, 1, line_len, f);
-		fprintf(stderr, "line_num=%d (global=%d)\n", line_num, global_line_num);
+		DBG("line_num=%d (global=%d)\n", line_num, global_line_num);
 		line_pos = 0;
 
 		while (line_pos < line_len) {
-			fprintf(stderr, "line_pos=%d: ", line_pos);
+			DBG("line_pos=%d, outpos=%d: ", line_pos, global_outpos + out - start);
 			int count_80 = 0, count_2, count_last = 0, count_prev3 = 0, count_prev7 = 0;
 			int bits_80 = 0, bits_2 = 0, bits_last = 0, bits_prev3 = 0, bits_prev7 = 0;
 			unsigned int data_80 = 0, data_2, data_last = 0, data_prev3 = 0, data_prev7 = 0;
@@ -304,25 +324,27 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 				}
 			}
 
-			ratio_80 = bits_80 ? count_80*8/bits_80 : 0;
-			ratio_2 = bits_2 ? count_2*8/bits_2 : 0;
-			ratio_last = bits_last ? count_last*8/bits_last : 0;
-			ratio_prev3 = bits_prev3 ? count_prev3*8/bits_prev3 : 0;
-			ratio_prev7 = bits_prev7 ? count_prev7*8/bits_prev7 : 0;
+			ratio_80 = bits_80 ? count_80*80/bits_80 : 0;
+			ratio_2 = bits_2 ? count_2*80/bits_2 : 0;
+			ratio_last = bits_last ? count_last*80/bits_last : 0;
+			ratio_prev3 = bits_prev3 ? count_prev3*80/bits_prev3 : 0;
+			ratio_prev7 = bits_prev7 ? count_prev7*80/bits_prev7 : 0;
 
-			fprintf(stderr, "@-80=%d, %d bits, ratio=%d\n", count_80, bits_80, ratio_80);
-			fprintf(stderr, "@-2=%d, %d bits, ratio=%d\n", count_2, bits_2, ratio_2);
-			fprintf(stderr, "run_len=%d, %d bits, ratio=%d\n", count_last, bits_last, ratio_last);
-			fprintf(stderr, "previous [3] count=%d, %d bits, ratio=%d\n", count_prev3, bits_prev3, ratio_prev3);
-			fprintf(stderr, "previous [7] count=%d, %d bits, ratio=%d\n", count_prev7, bits_prev7, ratio_prev7);
+			DBG("@-80=%d, %d bits, ratio=%d\n", count_80, bits_80, ratio_80);
+			DBG("@-2=%d, %d bits, ratio=%d\n", count_2, bits_2, ratio_2);
+			DBG("run_len=%d, %d bits, ratio=%d\n", count_last, bits_last, ratio_last);
+			DBG("previous [3] count=%d, %d bits, ratio=%d\n", count_prev3, bits_prev3, ratio_prev3);
+			DBG("previous [7] count=%d, %d bits, ratio=%d\n", count_prev7, bits_prev7, ratio_prev7);
 
 			if (ratio_80 > 0 && ratio_80 >= ratio_2 && ratio_80 >= ratio_last && ratio_80 >= ratio_prev3 && ratio_80 >= ratio_prev7) {
+				DBG("@-80\n");
 				encode_80(&out, &len, &bitpos, count_80);
 				line_pos += count_80;
 				continue;
 			}
 
 			if (ratio_2 > 0 && ratio_2 >= ratio_80 && ratio_2 >= ratio_last && ratio_2 >= ratio_prev3 && ratio_2 >= ratio_prev7) {
+				DBG("@-2\n");
 				encode_last_bytes(&out, &len, &bitpos, count_2, !twobyte_flag);
 				if (!twobyte_flag)
 					twobyte_flag = true;
@@ -331,6 +353,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 			}
 
 			if (ratio_last > 0 && ratio_last >= ratio_80 && ratio_last >= ratio_2 && ratio_last >= ratio_prev3 && ratio_last >= ratio_prev7) {
+				DBG("run_len\n");
 				encode_last_bytes(&out, &len, &bitpos, count_last, twobyte_flag);
 				if (twobyte_flag)
 					twobyte_flag = false;
@@ -339,6 +362,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 			}
 
 			if (ratio_prev3 > 0 && ratio_prev3 >= ratio_prev7) {
+				DBG("prev3\n");
 				encode_previous(&out, &len, &bitpos, count_prev3, prev8_flag);
 				if (prev8_flag)
 					prev8_flag = false;
@@ -347,6 +371,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 			}
 
 			if (ratio_prev7 > 0 && ratio_prev7 >= ratio_prev3) {
+				DBG("prev7\n");
 				encode_previous(&out, &len, &bitpos, count_prev7, !prev8_flag);
 				if (!prev8_flag)
 					prev8_flag = true;
@@ -357,7 +382,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 			/* dictionary */
 			int pos = dict_search(cur_line[line_pos], dictionary);
 			if (pos >= 0) {
-				fprintf(stderr, "dict @%d\n", pos);
+				DBG("dict @%d\n", pos);
 				encode_dict(&out, &len, &bitpos, pos);
 				dict_add(cur_line[line_pos], dictionary);
 				line_pos++;
@@ -365,6 +390,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 			}
 			/* zero byte */
 			if (cur_line[line_pos] == 0x00) {
+				DBG("zero\n");
 				put_bits(&out, &len, &bitpos, 8, 0b11111101);
 				dict_add(0, dictionary);
 				line_pos++;
@@ -389,11 +415,11 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 		global_line_num++;
 	}
 	/* block end marker */
-	fprintf(stderr, "block end\n");
+	DBG("block end\n");
 	put_bits(&out, &len, &bitpos, 8, 0b11111110);
 	put_bits(&out, &len, &bitpos, 2, 0b00);
 	/* fill unused bits in last byte */
-	fprintf(stderr, "%d unused bits\n", 8 - bitpos);
+	DBG("%d unused bits\n", 8 - bitpos);
 	put_bits(&out, &len, &bitpos, 8 - bitpos, 0xff);
 
 	if (last) {
@@ -415,7 +441,7 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	char buf[BUF_SIZE], buf2[BUF_SIZE];
 	
 	if (num_lines > height) {
-		fprintf(stderr, "num_lines := %d\n", height);
+		DBG("num_lines := %d\n", height);
 		num_lines = height;
 		last = true;
 	}
@@ -480,7 +506,7 @@ int main(int argc, char *argv[]) {
 			fgets(tmp, sizeof(tmp), f);
 		while (tmp[0] == '#');
 		sscanf(tmp, "%d %d", &width, &height);
-		fprintf(stderr, "width=%d height=%d\n", width, height);
+		DBG("width=%d height=%d\n", width, height);
 		line_len = width / 8;
 		if (line_len > 500)////////////////
 			line_len++;
@@ -500,7 +526,8 @@ int main(int argc, char *argv[]) {
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
 	/* document info - title */
 //	char *doc_title = "Untitled";
-	char *doc_title = "screenshot.xcf";
+//	char *doc_title = "screenshot.xcf";
+	char *doc_title = "Water lilies.jpg";
 	info = (void *)buf;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
 	info->unknown = cpu_to_be16(0x11);
@@ -565,6 +592,8 @@ int main(int argc, char *argv[]) {
 
 			line_len = page_header.cupsBytesPerLine;
 			height = page_header.cupsHeight;
+			width = page_header.cupsWidth;
+			DBG("line_len=%d height=%d width=%d", line_len, height, width);
 
 			/* read raster data */
 			while (height > 0) {
