@@ -525,22 +525,28 @@ int main(int argc, char *argv[]) {
 	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
 	/* document info - title */
-//	char *doc_title = "Untitled";
-//	char *doc_title = "screenshot.xcf";
-	char *doc_title = "Water lilies.jpg";
+	char *doc_title;
+	if (pbm_mode)
+		doc_title = "Untitled";
+	else
+		doc_title = argv[3];
 	info = (void *)buf;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
 	info->unknown = cpu_to_be16(0x11);
-	info->data_len = strlen(doc_title);
-	memcpy(buf + sizeof(struct carps_doc_info), doc_title, strlen(doc_title));
+	info->data_len = strlen(doc_title) > 255 ? 255 : strlen(doc_title);
+	strncpy(buf + sizeof(struct carps_doc_info), doc_title, 255);
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(doc_title), stdout);
 	/* document info - user name */
-	char *user_name = "root";
+	char *user_name;
+	if (pbm_mode)
+		user_name = "root";
+	else
+		user_name = argv[2];
 	info = (void *)buf;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_USER);
 	info->unknown = cpu_to_be16(0x11);
-	info->data_len = strlen(user_name);
-	memcpy(buf + sizeof(struct carps_doc_info), user_name, strlen(user_name));
+	info->data_len = strlen(user_name) > 255 ? 255 : strlen(user_name);
+	strncpy(buf + sizeof(struct carps_doc_info), user_name, 255);
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(user_name), stdout);
 	/* document info - unknown */
 	info = (void *)buf;
