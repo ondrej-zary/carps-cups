@@ -70,7 +70,8 @@ int get_block(u8 *buf, FILE *f, int flags) {
 		printf("========== BLOCK %d ==========\n", i++);
 		print_header((struct carps_header *)buf);
 	} else {
-		printf("BLOCK %d: ", i++);
+		struct carps_header *header = buf;
+		printf("BLOCK %d (len=%d): ", i++, be16_to_cpu(header->data_len));
 	}
 
 	struct carps_header *header = (void *)buf;

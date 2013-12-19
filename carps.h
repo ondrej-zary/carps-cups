@@ -8,6 +8,8 @@
 //#define BUF_SIZE 4096
 #define BUF_SIZE 65536
 
+#define MAX_BLOCK_LEN 4096
+
 #define MASK(n)	((1 << n) - 1)
 
 #define be16_to_cpu(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
