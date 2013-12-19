@@ -8,8 +8,6 @@
 //#define BUF_SIZE 4096
 #define BUF_SIZE 65536
 
-#define MAX_BLOCK_LEN 4096
-
 #define MASK(n)	((1 << n) - 1)
 
 #define be16_to_cpu(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
@@ -30,6 +28,9 @@ struct carps_header {
 	u16 data_len;	/* number of following data bytes, big endian */
 	u8 empty[10];	/* zeros */
 } __attribute__((packed));
+
+#define MAX_BLOCK_LEN	4096
+#define MAX_DATA_LEN	(MAX_BLOCK_LEN - sizeof(struct carps_header))
 
 #define CARPS_DATA_CONTROL	0x00
 #define CARPS_DATA_PRINT	0x02

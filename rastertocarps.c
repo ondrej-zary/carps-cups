@@ -439,6 +439,7 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	int ofs;
 	bool last = false;
 	char buf[BUF_SIZE], buf2[BUF_SIZE];
+	char *buf_pos;
 	
 	if (num_lines > height) {
 		DBG("num_lines := %d\n", height);
@@ -463,7 +464,22 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
 	len = ofs + sizeof(struct carps_print_header) + len;
 	buf[len++] = 0x80;	/* strip data end */
-	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len, stdout);
+
+	/* write blocks at most MAX_BLOCK_LEN bytes long */
+	buf_pos = buf;
+	while (len) {
+		int block_len = (len > MAX_DATA_LEN) ? MAX_DATA_LEN : len;
+		fprintf(stderr, "len=%d, block_len=%d\n", len, block_len);
+		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf_pos, block_len, stdout);
+		buf_pos += block_len;
+		len -= block_len;
+		/* insert 0x01 byte at the beginning of each continuing block */
+		if (len) {
+			buf_pos--;
+			len++;
+			buf_pos[0] = 0x01;
+		}
+	}
 
 	return num_lines;
 }
