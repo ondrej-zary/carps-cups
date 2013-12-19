@@ -462,8 +462,8 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	/* copy print data after the headers */
 	memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
 	len = ofs + sizeof(struct carps_print_header) + len;
-	buf[len] = 0x80;	/* strip data end */
-	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len + 1, stdout);
+	buf[len++] = 0x80;	/* strip data end */
+	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len, stdout);
 
 	return num_lines;
 }
