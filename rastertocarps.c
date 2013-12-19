@@ -600,20 +600,23 @@ int main(int argc, char *argv[]) {
 				height -= encode_print_block(height, NULL, ras);
 			}
 			/* finish this page */
+			/* end of page */
+			u8 page_end[] = { 0x01, 0x0c };
+			write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
 		}
 	} else {
 		/* print data */
 		while (!feof(f) && height > 0) {
 			height -= encode_print_block(height, f, NULL);
 		}
+		/* end of page */
+		u8 page_end[] = { 0x01, 0x0c };
+		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
 	}
 	if (pbm_mode)
 		fclose(f);
 	else
 		cupsRasterClose(ras);
-	/* end of page */
-	u8 page_end[] = { 0x01, 0x0c };
-	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
 	/* end of print data */
 	u8 print_data_end[] = { 0x01, 0x1b, 'P', '0', 'J', 0x1b, '\\' };
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, print_data_end, sizeof(print_data_end), stdout);
