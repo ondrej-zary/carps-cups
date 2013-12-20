@@ -162,7 +162,7 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 	return (1 << num_bits) + (~get_bits(data, len, bitpos, num_bits) & MASK(num_bits));
 }
 
-u8 last_lines[8][600], cur_line[600];
+u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];
 int out_bytes = 0;
 u16 line_num = 0;
 u16 line_pos;
@@ -279,7 +279,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		sscanf(tmp, ";%d;%d;", &width, &height);
 		printf("width=%d, height=%d\n", width, height);
 		line_len = DIV_ROUND_UP(width, 8);
-		if (line_len > 500)////////////////
+		if (line_len == 591)////////////////
 			line_len++;
 		printf("line_len=%d\n", line_len);
 		if (output_header && !header_written) {

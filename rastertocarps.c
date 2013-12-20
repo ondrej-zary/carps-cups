@@ -78,7 +78,7 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 }
 
 u16 line_len;
-u8 last_lines[8][1000], cur_line[1000];///////////
+u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];///////////
 u16 line_pos;
 
 int count_run_length(int pos) {
