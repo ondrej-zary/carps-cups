@@ -77,7 +77,7 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 	}
 }
 
-u16 line_len;
+u16 line_len, line_len_file;
 u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];///////////
 u16 line_pos;
 
@@ -271,12 +271,13 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	memset(dictionary, 0xaa, DICT_SIZE);
 
 	while ( ( (f && !feof(f)) || (ras) ) && line_num < *num_lines) {
+		memset(cur_line, 0, MAX_LINE_LEN);
 		if (ras) {
-			DBG("cupsRasterReadPixels(%p, %p, %d)\n", ras, cur_line, line_len);
-			if (cupsRasterReadPixels(ras, cur_line, line_len) == 0)
+			DBG("cupsRasterReadPixels(%p, %p, %d)\n", ras, cur_line, line_len_file);
+			if (cupsRasterReadPixels(ras, cur_line, line_len_file) == 0)
 				break;
 		} else
-			fread(cur_line, 1, line_len, f);
+			fread(cur_line, 1, line_len_file, f);
 		DBG("line_num=%d (global=%d)\n", line_num, global_line_num);
 		line_pos = 0;
 
@@ -529,9 +530,8 @@ int main(int argc, char *argv[]) {
 		while (tmp[0] == '#');
 		sscanf(tmp, "%d %d", &width, &height);
 		DBG("width=%d height=%d\n", width, height);
-		line_len = width / 8;
-		if (line_len > 500)////////////////
-			line_len++;
+		line_len_file = DIV_ROUND_UP(width, 8);
+		line_len = ROUND_UP_MULTIPLE(line_len_file, 4);
 	} else {
 		if (argc > 6) {
 			if ((fd = open(argv[6], O_RDONLY)) == -1) {
@@ -617,10 +617,11 @@ int main(int argc, char *argv[]) {
 			page++;
 			fprintf(stderr, "PAGE: %d %d\n", page, page_header.NumCopies);
 
-			line_len = page_header.cupsBytesPerLine;
+			line_len_file = page_header.cupsBytesPerLine;
+			line_len = ROUND_UP_MULTIPLE(line_len_file, 4);
 			height = page_header.cupsHeight;
 			width = page_header.cupsWidth;
-			DBG("line_len=%d height=%d width=%d", line_len, height, width);
+			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
 
 			/* read raster data */
 			while (height > 0) {
