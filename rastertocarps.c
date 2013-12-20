@@ -614,7 +614,6 @@ int main(int argc, char *argv[]) {
 
 	if (!pbm_mode) {
 		while (cupsRasterReadHeader2(ras, &page_header)) {
-			/* setup this page */
 			page++;
 			fprintf(stderr, "PAGE: %d %d\n", page, page_header.NumCopies);
 
@@ -627,7 +626,6 @@ int main(int argc, char *argv[]) {
 			while (height > 0) {
 				height -= encode_print_block(height, NULL, ras);
 			}
-			/* finish this page */
 			/* end of page */
 			u8 page_end[] = { 0x01, 0x0c };
 			write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);

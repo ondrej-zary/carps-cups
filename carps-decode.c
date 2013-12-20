@@ -234,7 +234,6 @@ void output_previous(int line, int count, FILE *fout) {
 }
 
 #define TMP_BUFLEN 100
-#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
 
 int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	bool in_escape = false;
@@ -278,9 +277,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		tmp[i] = '\0';
 		sscanf(tmp, ";%d;%d;", &width, &height);
 		printf("width=%d, height=%d\n", width, height);
-		line_len = DIV_ROUND_UP(width, 8);
-		if (line_len == 591)////////////////
-			line_len++;
+		line_len = ROUND_UP_MULTIPLE(DIV_ROUND_UP(width, 8), 4);
 		printf("line_len=%d\n", line_len);
 		if (output_header && !header_written) {
 			fprintf(fout, "P4\n%d ", line_len * 8);
