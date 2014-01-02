@@ -1,0 +1,101 @@
+CANON CARPS (Canon Advanced Raster Printing System) print format
+================================================================
+(reverse-engineered from LaserBase MF5730)
+
+Data is organized into blocks, each with 20-byte header:
+0: 0xCD - magic value
+1: 0xCA - magic value
+2: 0x10 - magic value
+3: data type (0x00 = control data, 0x02 = print data)
+4: 0x00
+5: block type (0x11, 0x12, 0x13, 0x14, 0x16, 0x17, 0x18, 0x19, 0x1a)
+6: 0x00
+7: 0x01
+8: length (high byte) of data following the header (number of bytes)
+9: length (low byte)
+10-19: padding (zeros)
+
+maximum block (URB?) size is 4KB (4096B)
+
+DOCUMENT structure:
+-------------------
+0x11: ???: 13 bytes: \x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00
+0x12: document name: \x00\x04\x00\x11 + character count + name
+0x12: user name: \x00\x06\x00\x11 + character count + name
+0x12: ???: 10 bytes: \x00\x09\x00\x00\x07\x00\x00\x00\x00\x00
+0x14: ???: 4 zero bytes
+0x17: ???: 4 zero bytes
+0x18: ???: 5 bytes: \x00\x2e\x82\x00\x00
+0x18: image refinement: 3 bytes: \x08\x2d + \x01 (off) or \x02 (on)
+0x18: toner save: 3 bytes: \x08\x5a + \x01 (off) or \x02 (on), if this block is not present, "printer default" is used
+PRINT DATA
+0x1a: end of page: 1 byte: \x01
+0x19: 0 bytes
+0x16: 0 bytes
+0x13: end of document: 1 zero byte
+
+
+PRINT DATA structure:
+---------------------
+all print data is in blocks with data type 0x02, block type 0x1a
+
+each page begins with a header (first page has header in separate block, others don't (?)), such as:
+\x01.%@.P42;600;1J;ImgColor.\.[11h.[?7;600 I.[20't.[14;;;;;;p.[?2h.[1v.[600;1;0;32;;64;0'c
+P42: ???
+600: 600dpi (300 = 300dpi)
+1J: ???
+ImgColor: ???
+20't = Plain paper (15't = Plain L, 20't = Plain, 30't = Heavy, 35't = Heavy H, 40't = Transparencies, 55't = Envelope)
+14 = A4, 16 = A5, 30 = letter (??????????????), 60 = envelope monarch
+1v: 1 copy (2v = 2 copies, 99v = 99 copies)
+
+then page data follows in STRIPs, each STRIP in one or more blocks
+each STRIP includes a header, such as:
+\x01.[;4724;110;15.P
+4724: strip witdh (in dots) for A4 (letter = 4863), 2362 (A4 300dpi)
+110: strip height (in dots) (minimum is 1, maximum 110)
+15: ???
+
+then COMPRESSED DATA HEADER follows (13 bytes):
+0: 0x01 - magic value
+1: 0x02 - magic value
+2: 0x04 - magic value
+3: 0x08 - magic value
+4-5: 0x0000
+6: 0x50 - magic value
+7: 0x00
+8: last strip indication (0x00 = last, 0x01 = not last)
+9-10: length (little endian??) - number of following data bytes (excluding ending 0x80 byte), can span multiple blocks,
+	subsequent blocks do not have this header
+11-12: 0x0000
+
+
+then COMPRESSED DATA follows
+
+strip can span multiple blocks (next blocks are without any headers)
+strip ends with 0x80 byte
+
+line ends with zero byte (1111 1101)
+compression is per line (repeat stream can't pass line end)
+
+
+each page ends with a 2-byte block containing \x01\x0c
+
+print data ends with a 7-byte block containing \x01\x1b\x50\x30\x4a\x1b\x5c
+
+		in		mm		px @ 600dpi Bytes/line	px @ 300dpi Bytes/line	hwmargin (pt) @ 600dpi	hwmargin (pt) @ 300dpi
+Letter:		8.50 x 11.00	215.9 x 279.4	4863 x 6363 608		2431 x 3181 304		14.22 x 14.22		14.28 x 14.28
+Legal:		8.50 x 14.00	215.9 x 355.6	4863 x 8163 608		2431 x 4081 304		14.22 x 14.22		14.28 x 14.28
+Executive:	7.25 x 10.50	184.1 x 267.6	4112 x 6063 516!	2056 x 3031 260!	14.28 x 14.22		14.28 x 14.28
+A5:		5.83 x  8.27	148   x 210	3259 x 4724 408		1629 x 2362 204		14.34 x 14.28		14.40 x 14.28
+B5:		7.17 x 10.12	182   x 257	4062 x 5834 508		2031 x 2917 256!	14.40 x 14.28		14.40 x 14.28
+A4:		8.27 x 11.69	210   x 297	4724 x 6779 592!	2362 x 3389 296		14.28 x 14.10		14.28 x 14.16
+Env. Monarch	3.88 x  7.50	98.5  x 190.5	2090 x 4263 264!	1045 x 2131 132!	14.28 x 14.22		14.28 x 14.28
+Env. COM10	4.13 x  9.50	104.9 x 241.3	2241 x 5463 284!	1120 x 2731 140		14.22 x 14.22		14.28 x 14.28
+Env. DL		4.33 x  8.66	110   x 220	2362 x 4960 296		1181 x 2480 148		14.16 x 14.16		14.16 x 14.16
+Env. C5		6.38 x  9.02	162   x 229	3590 x 5173 452!	1795 x 2586 228!	14.28 x 14.34		14.28 x 14.40
+
+Bytes per line = width/8 rounded up to multiples of 4
+
+COMPRESSED DATA format:
+-----------------------
