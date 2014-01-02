@@ -78,6 +78,7 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 }
 
 u16 line_len, line_len_file;
+int width, height;
 u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];///////////
 u16 line_pos;
 
@@ -266,7 +267,6 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	u8 dictionary[DICT_SIZE];
 	bool prev8_flag = false;
 	bool twobyte_flag = false;
-	char *start = out;
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 
@@ -450,7 +450,7 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	/* encode print data first as we need the length and line count */
 	u16 len = encode_print_data(&num_lines, last, f, ras, buf2);
 	/* strip header */
-	ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", 4724, num_lines);
+	ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", width, num_lines);
 	/* print data header */
 	struct carps_print_header *ph = (void *)buf + ofs;
 	memset(ph, 0, sizeof(struct carps_print_header));
@@ -496,7 +496,6 @@ int main(int argc, char *argv[]) {
 	struct carps_doc_info *info;
 	struct carps_print_params params;
 	char tmp[100];
-	int width, height;
 	bool pbm_mode = false;
 	FILE *f;
 	cups_raster_t *ras = NULL;
