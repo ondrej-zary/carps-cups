@@ -1,0 +1,35 @@
+#include <media.defs>
+
+Manufacturer "Canon"
+Version ""
+
+Filter application/vnd.cups-raster 100 rastertocarps
+
+HWMargins 13.75 12.75 13.75 12.75
+
+*MediaSize A4
+
+Resolution k 1 0 0 0 "300dpi/300 DPI"
+*Resolution k 1 0 0 0 "600dpi/600 DPI"
+
+Option "ImageRefinement/Image Refinement" Boolean AnySetup 10
+
+Option "TonerSave/Toner Save" PickOne AnySetup 10
+	*Choice "0/Use Printer Default" ""
+	Choice "ON/On" ""
+	Choice "OFF/Off" ""
+
+{
+	ModelName "MF5730"
+	PCFileName "mf5730.ppd"
+}
+
+{
+	ModelName "MF5750"
+	PCFileName "mf5750.ppd"
+}
+
+{
+	ModelName "MF5770"
+	PCFileName "mf5770.ppd"
+}
