@@ -18,8 +18,9 @@ MediaSize Env10
 MediaSize DL
 MediaSize C5
 
-//VariablePaperSize yes
-
+MinSize 3in 5in
+MaxSize 8.5in 14in
+VariablePaperSize yes
 
 Resolution k 1 0 0 0 "300dpi/300 DPI"
 *Resolution k 1 0 0 0 "600dpi/600 DPI"
