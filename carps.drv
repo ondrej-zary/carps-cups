@@ -5,9 +5,21 @@ Version ""
 
 Filter application/vnd.cups-raster 100 rastertocarps
 
-HWMargins 13.75 12.75 13.75 12.75
+HWMargins 14.25 14.25 14.25 14.25
 
-*MediaSize A4
+*MediaSize Letter
+MediaSize Legal
+MediaSize Executive
+MediaSize A5
+MediaSize B5
+MediaSize A4
+MediaSize Monarch
+MediaSize Env10
+MediaSize DL
+MediaSize C5
+
+//VariablePaperSize yes
+
 
 Resolution k 1 0 0 0 "300dpi/300 DPI"
 *Resolution k 1 0 0 0 "600dpi/600 DPI"
