@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <cups/ppd.h>
 #include <cups/raster.h>
 #include "carps.h"
 
@@ -78,7 +79,7 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 }
 
 u16 line_len, line_len_file;
-int width, height;
+int width, height, dpi;
 u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];///////////
 u16 line_pos;
 
@@ -491,6 +492,27 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	return num_lines;
 }
 
+void fill_print_data_header(char *buf, int dpi) {
+	char tmp[100];
+
+//	\x01.%@.P42;600;1J;ImgColor.\.[11h.[?7;600 I.[20't.[14;;;;;;p.[?2h.[1v.[600;1;0;32;;64;0'c
+	buf[0] = 1;
+	buf[1] = 0;
+	strcat(buf, "\x1b%@");
+	sprintf(tmp, "\x1bP42;%d;1J;ImgColor", dpi);
+	strcat(buf, tmp);
+	strcat(buf, "\x1b\\");
+	strcat(buf, "\x1b[11h");
+	sprintf(tmp, "\x1b[?7;%d I", dpi);
+	strcat(buf, tmp);
+	strcat(buf, "\x1b[20't");	/* plain paper */
+	strcat(buf, "\x1b[14;;;;;;p");
+	strcat(buf, "\x1b[?2h");
+	strcat(buf, "\x1b[1v");	/* 1 copy */
+	sprintf(tmp, "\x1b[%d;1;0;32;;64;0'c", dpi);
+	strcat(buf, tmp);
+}
+
 int main(int argc, char *argv[]) {
 	char buf[BUF_SIZE];
 	struct carps_doc_info *info;
@@ -502,6 +524,8 @@ int main(int argc, char *argv[]) {
 	cups_page_header2_t page_header;
 	unsigned int page = 0;
 	int fd;
+	ppd_file_t *ppd;
+	bool header_written = false;
 
 	if (argc < 2 || argc == 3 || argc == 4 || argc == 5 || argc > 7) {
 		fprintf(stderr, "usage: rastertocarps <file.pbm>\n");
@@ -532,6 +556,9 @@ int main(int argc, char *argv[]) {
 		line_len_file = DIV_ROUND_UP(width, 8);
 		line_len = ROUND_UP_MULTIPLE(line_len_file, 4);
 	} else {
+		int n;
+		cups_option_t *options;
+
 		if (argc > 6) {
 			if ((fd = open(argv[6], O_RDONLY)) == -1) {
 				perror("ERROR: Unable to open raster file - ");
@@ -540,6 +567,15 @@ int main(int argc, char *argv[]) {
 		} else
 			fd = 0;
 		ras = cupsRasterOpen(fd, CUPS_RASTER_READ);
+		ppd = ppdOpenFile(getenv("PPD"));
+		if (!ppd) {
+			fprintf(stderr, "Unable to open PPD file %s\n", getenv("PPD"));
+			return 2;
+		}
+		ppdMarkDefaults(ppd);
+		n = cupsParseOptions(argv[5], 0, &options);
+		cupsMarkOptions(ppd, n, options);
+		cupsFreeOptions(n, options);
 	}
 
 	/* document beginning */
@@ -595,21 +631,6 @@ int main(int argc, char *argv[]) {
 	params.param = CARPS_PARAM_TONERSAVE;
 	params.enabled = CARPS_PARAM_DISABLED;
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_PARAMS, &params, sizeof(params), stdout);
-	/* print data header */
-//	\x01.%@.P42;600;1J;ImgColor.\.[11h.[?7;600 I.[20't.[14;;;;;;p.[?2h.[1v.[600;1;0;32;;64;0'c
-	buf[0] = 1;
-	buf[1] = 0;
-	strcat(buf, "\x1b%@");
-	strcat(buf, "\x1bP42;600;1J;ImgColor");	/* 600 dpi */
-	strcat(buf, "\x1b\\");
-	strcat(buf, "\x1b[11h");
-	strcat(buf, "\x1b[?7;600 I");
-	strcat(buf, "\x1b[20't");	/* plain paper */
-	strcat(buf, "\x1b[14;;;;;;p");
-	strcat(buf, "\x1b[?2h");
-	strcat(buf, "\x1b[1v");	/* 1 copy */
-	strcat(buf, "\x1b[600;1;0;32;;64;0'c");
-	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 
 	if (!pbm_mode) {
 		while (cupsRasterReadHeader2(ras, &page_header)) {
@@ -620,7 +641,13 @@ int main(int argc, char *argv[]) {
 			line_len = ROUND_UP_MULTIPLE(line_len_file, 4);
 			height = page_header.cupsHeight;
 			width = page_header.cupsWidth;
+			dpi = page_header.HWResolution[0];
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
+			if (!header_written) {	/* print data header */
+				fill_print_data_header(buf, dpi);
+				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
+				header_written = true;
+			}
 
 			/* read raster data */
 			while (height > 0) {
@@ -631,6 +658,9 @@ int main(int argc, char *argv[]) {
 			write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
 		}
 	} else {
+		/* print data header */
+		fill_print_data_header(buf, 600);
+		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* print data */
 		while (!feof(f) && height > 0) {
 			height -= encode_print_block(height, f, NULL);
@@ -641,8 +671,10 @@ int main(int argc, char *argv[]) {
 	}
 	if (pbm_mode)
 		fclose(f);
-	else
+	else {
+		ppdClose(ppd);
 		cupsRasterClose(ras);
+	}
 	/* end of print data */
 	u8 print_data_end[] = { 0x01, 0x1b, 'P', '0', 'J', 0x1b, '\\' };
 	write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, print_data_end, sizeof(print_data_end), stdout);
