@@ -81,3 +81,26 @@ struct carps_print_header {
 } __attribute__((packed));
 
 #define PRINT_DATA_XOR 0x43
+
+enum carps_paper_weight {
+	WEIGHT_PLAIN_L	= 15,
+	WEIGHT_PLAIN	= 20,
+	WEIGHT_HEAVY	= 30,
+	WEIGHT_HEAVY_H	= 35,
+	WEIGHT_TRANSP	= 40,
+	WEIGHT_ENVELOPE	= 55,
+};
+
+enum carps_paper_size {
+	PAPER_A4	= 14,
+	PAPER_A5	= 16,
+	PAPER_B5	= 26,
+	PAPER_LETTER	= 30,
+	PAPER_LEGAL	= 32,
+	PAPER_EXECUTIVE	= 40,
+	PAPER_ENV_MONAR	= 60,
+	PAPER_ENV_COM10	= 62,
+	PAPER_ENV_DL	= 64,
+	PAPER_ENV_C5	= 66,
+	PAPER_CUSTOM	= 80,
+};
