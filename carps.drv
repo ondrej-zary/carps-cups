@@ -32,6 +32,8 @@ Option "TonerSave/Toner Save" PickOne AnySetup 10
 	Choice "ON/On" ""
 	Choice "OFF/Off" ""
 
+Throughput 20
+
 {
 	ModelName "MF5730"
 	PCFileName "mf5730.ppd"
