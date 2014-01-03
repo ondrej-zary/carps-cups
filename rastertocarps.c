@@ -492,23 +492,34 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	return num_lines;
 }
 
-void fill_print_data_header(char *buf, int dpi) {
+void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, unsigned int size) {
 	char tmp[100];
 
 //	\x01.%@.P42;600;1J;ImgColor.\.[11h.[?7;600 I.[20't.[14;;;;;;p.[?2h.[1v.[600;1;0;32;;64;0'c
 	buf[0] = 1;
 	buf[1] = 0;
 	strcat(buf, "\x1b%@");
+	/* ??? and resolution */
 	sprintf(tmp, "\x1bP42;%d;1J;ImgColor", dpi);
 	strcat(buf, tmp);
+	/* ??? */
 	strcat(buf, "\x1b\\");
+	/* ??? */
 	strcat(buf, "\x1b[11h");
+	/* ??? and resolution */
 	sprintf(tmp, "\x1b[?7;%d I", dpi);
 	strcat(buf, tmp);
-	strcat(buf, "\x1b[20't");	/* plain paper */
-	strcat(buf, "\x1b[14;;;;;;p");
+	/* paper weight */
+	sprintf(tmp, "\x1b[%d't", weight);
+	strcat(buf, tmp);
+	/* paper size */
+	sprintf(tmp, "\x1b[%d;;;;;;p", size);
+	strcat(buf, tmp);
+	/* ??? */
 	strcat(buf, "\x1b[?2h");
+	/* number of copies */
 	strcat(buf, "\x1b[1v");	/* 1 copy */
+	/* resolution and ??? */
 	sprintf(tmp, "\x1b[%d;1;0;32;;64;0'c", dpi);
 	strcat(buf, tmp);
 }
@@ -644,7 +655,7 @@ int main(int argc, char *argv[]) {
 			dpi = page_header.HWResolution[0];
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
 			if (!header_written) {	/* print data header */
-				fill_print_data_header(buf, dpi);
+				fill_print_data_header(buf, dpi, WEIGHT_PLAIN, PAPER_A4);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 				header_written = true;
 			}
@@ -659,7 +670,7 @@ int main(int argc, char *argv[]) {
 		}
 	} else {
 		/* print data header */
-		fill_print_data_header(buf, 600);
+		fill_print_data_header(buf, 600, WEIGHT_PLAIN, PAPER_A4);	/* 600 dpi, plain paper, A4 */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* print data */
 		while (!feof(f) && height > 0) {
