@@ -33,11 +33,13 @@ MediaType 40 "TRANSP/Transparencies"
 MediaType 55 "ENVELOPE/Envelope"
 
 Option "ImageRefinement/Image Refinement" Boolean AnySetup 10
+	Choice "OFF/Off" ""
+	*Choice "ON/On" ""
 
 Option "TonerSave/Toner Save" PickOne AnySetup 10
-	*Choice "0/Use Printer Default" ""
-	Choice "ON/On" ""
+	*Choice "DEFAULT/Use Printer Default" ""
 	Choice "OFF/Off" ""
+	Choice "ON/On" ""
 
 Throughput 20
 

@@ -687,12 +687,25 @@ int main(int argc, char *argv[]) {
 	params.magic = CARPS_PARAM_MAGIC;
 	params.param = CARPS_PARAM_IMAGEREFINE;
 	params.enabled = CARPS_PARAM_ENABLED;
+	if (!pbm_mode) {
+		char *value = ppd_get(ppd, "ImageRefinement");
+		if (!strcmp(value, "OFF"))
+			params.enabled = CARPS_PARAM_DISABLED;
+	}
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_PARAMS, &params, sizeof(params), stdout);
 	/* print params - toner save */
 	params.magic = CARPS_PARAM_MAGIC;
 	params.param = CARPS_PARAM_TONERSAVE;
 	params.enabled = CARPS_PARAM_DISABLED;
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_PARAMS, &params, sizeof(params), stdout);
+	if (!pbm_mode) {
+		char *value = ppd_get(ppd, "TonerSave");
+		if (strcmp(value, "DEFAULT")) {
+			if (!strcmp(value, "ON"))
+				params.enabled = CARPS_PARAM_ENABLED;
+			write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_PARAMS, &params, sizeof(params), stdout);
+		}
+	} else
+		write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_PARAMS, &params, sizeof(params), stdout);
 
 	if (!pbm_mode) {
 		while (cupsRasterReadHeader2(ras, &page_header)) {
@@ -705,7 +718,6 @@ int main(int argc, char *argv[]) {
 			width = page_header.cupsWidth;
 			dpi = page_header.HWResolution[0];
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
-			fprintf(stderr, "PPD=%p\n", ppd_get(ppd, "PageSize"));
 			if (!header_written) {	/* print data header */
 				fill_print_data_header(buf, dpi, page_header.cupsMediaType, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
