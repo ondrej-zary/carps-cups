@@ -707,7 +707,7 @@ int main(int argc, char *argv[]) {
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
 			fprintf(stderr, "PPD=%p\n", ppd_get(ppd, "PageSize"));
 			if (!header_written) {	/* print data header */
-				fill_print_data_header(buf, dpi, WEIGHT_PLAIN, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
+				fill_print_data_header(buf, dpi, page_header.cupsMediaType, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 				header_written = true;
 			}

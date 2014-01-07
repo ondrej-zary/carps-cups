@@ -25,6 +25,13 @@ VariablePaperSize yes
 Resolution k 1 0 0 0 "300dpi/300 DPI"
 *Resolution k 1 0 0 0 "600dpi/600 DPI"
 
+*MediaType 20 "PLAIN/Plain Paper"
+MediaType 15 "PLAIN_L/Plain Paper L"
+MediaType 30 "HEAVY/Heavy Paper"
+MediaType 35 "HEAVY_H/Heavy Paper H"
+MediaType 40 "TRANSP/Transparencies"
+MediaType 55 "ENVELOPE/Envelope"
+
 Option "ImageRefinement/Image Refinement" Boolean AnySetup 10
 
 Option "TonerSave/Toner Save" PickOne AnySetup 10
