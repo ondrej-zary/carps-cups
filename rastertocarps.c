@@ -492,8 +492,34 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	return num_lines;
 }
 
-void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, unsigned int size) {
+enum carps_paper_size encode_paper_size(const char *paper_size_name) {
+	if (!strcmp(paper_size_name, "A4"))
+		return PAPER_A4;
+	else if (!strcmp(paper_size_name, "A5"))
+		return PAPER_A5;
+	else if (!strcmp(paper_size_name, "B5"))
+		return PAPER_B5;
+	else if (!strcmp(paper_size_name, "Letter"))
+		return PAPER_LETTER;
+	else if (!strcmp(paper_size_name, "Legal"))
+		return PAPER_LEGAL;
+	else if (!strcmp(paper_size_name, "Executive"))
+		return PAPER_EXECUTIVE;
+	else if (!strcmp(paper_size_name, "Monarch"))
+		return PAPER_ENV_MONAR;
+	else if (!strcmp(paper_size_name, "Env10"))
+		return PAPER_ENV_COM10;
+	else if (!strcmp(paper_size_name, "DL"))
+		return PAPER_ENV_DL;
+	else if (!strcmp(paper_size_name, "C5"))
+		return PAPER_ENV_C5;
+	else
+		return PAPER_CUSTOM;
+}
+
+void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, const char *paper_size_name) {
 	char tmp[100];
+	enum carps_paper_size paper_size = encode_paper_size(paper_size_name);
 
 //	\x01.%@.P42;600;1J;ImgColor.\.[11h.[?7;600 I.[20't.[14;;;;;;p.[?2h.[1v.[600;1;0;32;;64;0'c
 	buf[0] = 1;
@@ -513,7 +539,7 @@ void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, un
 	sprintf(tmp, "\x1b[%d't", weight);
 	strcat(buf, tmp);
 	/* paper size */
-	sprintf(tmp, "\x1b[%d;;;;;;p", size);
+	sprintf(tmp, "\x1b[%d;;;;;;p", paper_size);
 	strcat(buf, tmp);
 	/* ??? */
 	strcat(buf, "\x1b[?2h");
@@ -522,6 +548,24 @@ void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, un
 	/* resolution and ??? */
 	sprintf(tmp, "\x1b[%d;1;0;32;;64;0'c", dpi);
 	strcat(buf, tmp);
+}
+
+char *ppd_get(ppd_file_t *ppd, const char *name) {
+	ppd_attr_t *attr = ppdFindAttr(ppd, name, NULL);
+
+	if (attr) {
+		fprintf(stderr, "attr->value=%s\n", attr->value);
+		return attr->value;
+	}
+	else {
+		fprintf(stderr, "attr is NULL\n");
+		ppd_choice_t *choice;
+		choice = ppdFindMarkedChoice(ppd, name);
+		if (!choice)
+			return NULL;
+		fprintf(stderr, "choice->choice=%s\n", choice->choice);
+		return choice->choice;
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -654,8 +698,9 @@ int main(int argc, char *argv[]) {
 			width = page_header.cupsWidth;
 			dpi = page_header.HWResolution[0];
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
+			fprintf(stderr, "PPD=%p\n", ppd_get(ppd, "PageSize"));
 			if (!header_written) {	/* print data header */
-				fill_print_data_header(buf, dpi, WEIGHT_PLAIN, PAPER_A4);
+				fill_print_data_header(buf, dpi, WEIGHT_PLAIN, page_header.cupsPageSizeName);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 				header_written = true;
 			}
@@ -670,7 +715,7 @@ int main(int argc, char *argv[]) {
 		}
 	} else {
 		/* print data header */
-		fill_print_data_header(buf, 600, WEIGHT_PLAIN, PAPER_A4);	/* 600 dpi, plain paper, A4 */
+		fill_print_data_header(buf, 600, WEIGHT_PLAIN, "A4");	/* 600 dpi, plain paper, A4 */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* print data */
 		while (!feof(f) && height > 0) {
