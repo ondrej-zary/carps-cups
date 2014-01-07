@@ -1,6 +1,8 @@
 #define u8 unsigned char
 #define u16 unsigned short
 
+#define POINTS_PER_INCH 72
+
 #define ESC 0x1b
 
 #define DICT_SIZE 16

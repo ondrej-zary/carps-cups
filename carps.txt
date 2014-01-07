@@ -47,7 +47,8 @@ P42: ???
 ImgColor: ???
 20't = Plain paper (15't = Plain L, 20't = Plain, 30't = Heavy, 35't = Heavy H, 40't = Transparencies, 55't = Envelope)
 14 = A4, 16 = A5, 26 = B5, 30 = letter, 32 = legal, 40 = executive, 60 = env. monarch, 62 = env. com10, 64 = env. DL, 66 = env. C5, 80 = CUSTOM
-	(CUSTOM: 3x5" @ 300dpi = ESC[80;1500;900;60;60;60;60p, 8.5x14" @ 300dpi = ESC[80;4200;2550;60;60;60;60p)
+	(CUSTOM: 3x5" @ 300dpi = ESC[80;1500;900;60;60;60;60p, 8.5x14" @ 300dpi = ESC[80;4200;2550;60;60;60;60p )
+	(	 3x5" @ 600dpi = ESC[80;3000;1800;120;120;120;120p						)
 1v: 1 copy (2v = 2 copies, 99v = 99 copies)
 
 then page data follows in STRIPs, each STRIP in one or more blocks

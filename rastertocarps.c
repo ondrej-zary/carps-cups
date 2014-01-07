@@ -517,7 +517,7 @@ enum carps_paper_size encode_paper_size(const char *paper_size_name) {
 		return PAPER_CUSTOM;
 }
 
-void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, const char *paper_size_name) {
+void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, const char *paper_size_name, unsigned int paper_width, unsigned int paper_height) {
 	char tmp[100];
 	enum carps_paper_size paper_size = encode_paper_size(paper_size_name);
 
@@ -539,7 +539,14 @@ void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, co
 	sprintf(tmp, "\x1b[%d't", weight);
 	strcat(buf, tmp);
 	/* paper size */
-	sprintf(tmp, "\x1b[%d;;;;;;p", paper_size);
+	if (paper_size == PAPER_CUSTOM) {
+		/* compute custom paper size in print dots */
+		int margin = 2 * dpi / 10;
+		paper_height = paper_height * dpi / POINTS_PER_INCH;
+		paper_width = paper_width * dpi / POINTS_PER_INCH;
+		sprintf(tmp, "\x1b[%d;%d;%d;%d;%d;%d;%dp", paper_size, paper_height, paper_width, margin, margin, margin, margin);
+	} else
+		sprintf(tmp, "\x1b[%d;;;;;;p", paper_size);
 	strcat(buf, tmp);
 	/* ??? */
 	strcat(buf, "\x1b[?2h");
@@ -700,7 +707,7 @@ int main(int argc, char *argv[]) {
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
 			fprintf(stderr, "PPD=%p\n", ppd_get(ppd, "PageSize"));
 			if (!header_written) {	/* print data header */
-				fill_print_data_header(buf, dpi, WEIGHT_PLAIN, page_header.cupsPageSizeName);
+				fill_print_data_header(buf, dpi, WEIGHT_PLAIN, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 				header_written = true;
 			}
@@ -715,7 +722,7 @@ int main(int argc, char *argv[]) {
 		}
 	} else {
 		/* print data header */
-		fill_print_data_header(buf, 600, WEIGHT_PLAIN, "A4");	/* 600 dpi, plain paper, A4 */
+		fill_print_data_header(buf, 600, WEIGHT_PLAIN, "A4", 0, 0);	/* 600 dpi, plain paper, A4 */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* print data */
 		while (!feof(f) && height > 0) {
