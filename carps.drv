@@ -42,18 +42,83 @@ Option "TonerSave/Toner Save" PickOne AnySetup 10
 	Choice "ON/On" ""
 
 Throughput 20
-
 {
 	ModelName "MF5730"
 	PCFileName "mf5730.ppd"
 }
-
 {
 	ModelName "MF5750"
 	PCFileName "mf5750.ppd"
 }
-
 {
 	ModelName "MF5770"
 	PCFileName "mf5770.ppd"
 }
+
+Throughput 18
+{
+	ModelName "MF5630"
+	PCFileName "mf5630.ppd"
+}
+{
+	ModelName "MF5650"
+	PCFileName "mf5650.ppd"
+}
+
+{
+	Throughput 21
+	ModelName "MF3110"
+	PCFileName "mf3110.ppd"
+}
+
+{
+	Throughput 15
+	ModelName "imageCLASS D300"
+	PCFileName "icd300.ppd"
+}
+
+{
+	Throughput 15
+	ModelName "LASERCLASS 500"
+	PCFileName "lc500.ppd"
+}
+
+{
+	Throughput 19
+	ModelName "FP-L170/MF350/L380/L398"
+	PCFileName "mf350.ppd"
+}
+{
+	ModelName "LC310/L390/L408S"
+	PCFileName "lc310.ppd"
+}
+
+{
+	Throughput 14
+	ModelName "PC-D300/FAX-L400/ICD300"
+	PCFileName "pcd300.ppd"
+}
+
+{
+	Throughput 18
+	ModelName "L180/L380S/L398S"
+	PCFileName "l180.ppd"
+}
+
+/* not supported:
+{
+	Throughput 13
+	ModelName "L120"
+	PCFileName "l120.ppd"
+}
+{
+	Throughput 21
+	ModelName "MF3200 Series"
+	PCFileName "mf3200.ppd"
+}
+{
+	Throughput 4
+	ModelName "MF8100 Series"
+	PCFileName "mf8100.ppd"
+}
+*/
