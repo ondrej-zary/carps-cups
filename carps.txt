@@ -54,8 +54,8 @@ ImgColor: ???
 then page data follows in STRIPs, each STRIP in one or more blocks
 each STRIP includes a header, such as:
 \x01.[;4724;110;15.P
-4724: strip witdh (in dots) for A4 (letter = 4863), 2362 (A4 300dpi)
-110: strip height (in dots) (minimum is 1, maximum 110)
+4724: strip witdh (in dots)
+110: strip height (in dots)
 15: ???
 
 then COMPRESSED DATA HEADER follows (13 bytes):
@@ -88,16 +88,84 @@ print data ends with a 7-byte block containing \x01\x1b\x50\x30\x4a\x1b\x5c
 		in		mm		px @ 600dpi Bytes/line	px @ 300dpi Bytes/line	hwmargin (pt) @ 600dpi	hwmargin (pt) @ 300dpi
 Letter:		8.50 x 11.00	215.9 x 279.4	4863 x 6363 608		2431 x 3181 304		14.22 x 14.22		14.28 x 14.28
 Legal:		8.50 x 14.00	215.9 x 355.6	4863 x 8163 608		2431 x 4081 304		14.22 x 14.22		14.28 x 14.28
-Executive:	7.25 x 10.50	184.1 x 267.6	4112 x 6063 516!	2056 x 3031 260!	14.28 x 14.22		14.28 x 14.28
+Executive:	7.25 x 10.50	184.1 x 267.6	4112 x 6063 516		2056 x 3031 260		14.28 x 14.22		14.28 x 14.28
 A5:		5.83 x  8.27	148   x 210	3259 x 4724 408		1629 x 2362 204		14.34 x 14.28		14.40 x 14.28
-B5:		7.17 x 10.12	182   x 257	4062 x 5834 508		2031 x 2917 256!	14.40 x 14.28		14.40 x 14.28
-A4:		8.27 x 11.69	210   x 297	4724 x 6779 592!	2362 x 3389 296		14.16 x 14.16		14.28 x 14.16
-Env. Monarch	3.88 x  7.50	98.5  x 190.5	2090 x 4263 264!	1045 x 2131 132!	14.28 x 14.22		14.28 x 14.28
-Env. COM10	4.13 x  9.50	104.9 x 241.3	2241 x 5463 284!	1120 x 2731 140		14.22 x 14.22		14.28 x 14.28
+B5:		7.17 x 10.12	182   x 257	4062 x 5834 508		2031 x 2917 256		14.40 x 14.28		14.40 x 14.28
+A4:		8.27 x 11.69	210   x 297	4724 x 6779 592		2362 x 3389 296		14.16 x 14.16		14.28 x 14.16
+Env. Monarch	3.88 x  7.50	98.5  x 190.5	2090 x 4263 264		1045 x 2131 132		14.28 x 14.22		14.28 x 14.28
+Env. COM10	4.13 x  9.50	104.9 x 241.3	2241 x 5463 284		1120 x 2731 140		14.22 x 14.22		14.28 x 14.28
 Env. DL		4.33 x  8.66	110   x 220	2362 x 4960 296		1181 x 2480 148		14.16 x 14.16		14.16 x 14.16
-Env. C5		6.38 x  9.02	162   x 229	3590 x 5173 452!	1795 x 2586 228!	14.28 x 14.34		14.28 x 14.40
+Env. C5		6.38 x  9.02	162   x 229	3590 x 5173 452		1795 x 2586 228		14.28 x 14.34		14.28 x 14.40
 
 Bytes per line = width/8 rounded up to multiples of 4
 
 COMPRESSED DATA format:
 -----------------------
+
+
+
+
+
+OTHER PRINTERS
+--------------
+
+CARPS_Driver_V300_W32_us_EN.exe (CNAR0U.INF):
+"Canon imageCLASS D300" 	= ICD300,USBPRINT\CanonimageCLASS_D30094B2,"imageCLASS D300"
+(D320 D340)
+"Canon LASERCLASS 500"  	= LC500,USBPRINT\CanonLASERCLASS_50034BE,"LASERCLASS 500"
+(510)
+"Canon FP-L170/MF350/L380/L398"	= MF350,USBPRINT\CanonFP-L170/MF350/LF4FD,CanonFP-L170/MF350/LF4FD,"FP-L170/MF350/L380/L398"
+"Canon L120"			= L120,USBPRINT\CanonL120acdf,CanonL120acdf,"L120"
+"Canon LC310/L390/L408S"	= LC310,USBPRINT\CanonLC310/L390/L408bffd,CanonLC310/L390/L408bffd,"LC310/L390/L408S"
+
+BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
+imageCLASS D300: 15ppm, no image refinement
+LASERCLASS 500: 15ppm, no image refinement
+FP-L170/MF350/L380/L398: 19ppm, has image refinement
+L120: 13ppm, image refinement always off, different data format??????, ESC[600;1;0;256;;0;0'c
+LC310/L390/L408S: 19ppm, has image refinement
+
+--------------
+
+CARPS_Driver_V300_W32_uk_EN.exe (CNAR0K.INF):
+"Canon PC-D300/FAX-L400/ICD300"	= ICD300,USBPRINT\CanonPC-D300/FAX-L405C4D,"PC-D300/FAX-L400/ICD300"
+"Canon FP-L170/MF350/L380/L398"	= MF350,USBPRINT\CanonFP-L170/MF350/LF4FD,CanonFP-L170/MF350/LF4FD,"FP-L170/MF350/L380/L398"
+"Canon L120"			= L120,USBPRINT\CanonL120acdf,CanonL120acdf,"L120"
+"Canon L180/L380S/L398S"	= L180,USBPRINT\CanonL180/L380S/L398c786,CanonL180/L380S/L398c786,"L180/L380S/L398S"
+"Canon LC310/L390/L408S"	= LC310,USBPRINT\CanonLC310/L390/L408bffd,CanonLC310/L390/L408bffd,"LC310/L390/L408S"
+
+BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
+PC-D300/FAX-L400/ICD300: 14ppm, no image refinement
+L180/L380S/L398S: 18ppm, has image refinement
+
+--------------
+
+MF5600_Series_MFDrivers_W32_uk_EN.exe (MF5600AK.INF):
+"Canon MF5600 Series"		= MF5600,USBPRINT\CanonMF56300658,CanonMF56300658,"MF5630"
+"Canon MF5600 Series"		= MF5600,USBPRINT\CanonMF5650a65b,CanonMF5650a65b,"MF5650"
+
+MF5630: 18ppm, has image refinement
+MF5650: 18ppm, has image refinement
+BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
+
+--------------
+
+MF3110_MFDrivers_W32_us_EN.exe (MF3110AU.INF):
+"Canon MF3110"		= MF3110,USBPRINT\CanonMF31102fe8,"MF3110"
+
+MF3110: 21ppm, has image refinement (also for MF3111)
+BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
+
+--------------
+
+MF3240_MFDrivers_W32_us_EN.exe (MF3200AU.INF):
+"Canon MF3200 Series"	= MF3200,USBPRINT\CanonMF3200_Series7652
+
+MF3200_Series: 21ppm, has image refinement, UNKNOWN BLOCK 0x6b, different data format, ESC[600;1;0;256;;0;0'c
+
+--------------
+
+MF8170_8180_MFDrivers_W32_us_EN-1.exe (MF8100AU.INF): 
+"Canon MF8100 Series"	= MF8100,USBPRINT\CanonMF8100_Series5D87
+
+MF8100_Series: 4 ppm, COLOR!!!!!, ESC[600;2;32;32;;64;0'c
