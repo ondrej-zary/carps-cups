@@ -22,6 +22,14 @@ DOCUMENT structure:
 0x11: ???: 13 bytes: \x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00
 0x12: document name: \x00\x04\x00\x11 + character count + name
 0x12: user name: \x00\x06\x00\x11 + character count + name
+0x12: time: \x00\x09\x7D\xE1\x43\x00\x0C\x12\x46\xEC	(UTC)
+                      ^^  ^ 2014
+                           ^ JANUARY
+                              ^^ DAY (5bit) + DAY OF WEEK (3bit)
+                                  ^^ SEPARATOR
+                                      ^^ HOUR
+                                          ^^ MINUTES
+                                              ^^  ^^ SECONDS (6bit) + MILLISECONDS (2+8bit) (?)
 0x12: ???: 10 bytes: \x00\x09\x00\x00\x07\x00\x00\x00\x00\x00
 0x14: ???: 4 zero bytes
 0x17: ???: 4 zero bytes

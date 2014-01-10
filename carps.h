@@ -57,6 +57,19 @@ struct carps_doc_info {
 } __attribute__((packed));
 #define CARPS_DOC_INFO_TITLE	0x0004
 #define CARPS_DOC_INFO_USER	0x0006
+#define CARPS_DOC_INFO_TIME	0x0009
+
+struct carps_time {
+	u16 type;	/* 0x0009 */
+	u8 year;
+	u8 year_month;
+	u8 day;
+	u8 zero;
+	u8 hour;
+	u8 min;
+	u8 sec_msec;
+	u8 msec;
+} __attribute__((packed));
 
 struct carps_print_params {
 	u8 magic;

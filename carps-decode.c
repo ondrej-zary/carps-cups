@@ -435,6 +435,7 @@ int main(int argc, char *argv[]) {
 	u8 *data = buf + sizeof(struct carps_header);
 	int ret;
 	u16 len;
+	char *weekday[] = { "", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
 
 	if (argc < 2) {
 		usage();
@@ -471,19 +472,34 @@ int main(int argc, char *argv[]) {
 		}
 		case CARPS_BLOCK_DOC_INFO: {
 			struct carps_doc_info *info = (void *)data;
+			struct carps_time *time;
 			printf("DOCUMENT INFORMATION: ");
 			u16 type = be16_to_cpu(info->type);
 			u16 unknown = be16_to_cpu(info->unknown);
-			if (unknown != 0x11)
-				printf("!!!!!!!! ");
 			switch (type) {
 			case CARPS_DOC_INFO_TITLE:
+				if (unknown != 0x11)
+					printf("!!!!!!!! ");
 				data[sizeof(struct carps_doc_info) + info->data_len] = '\x0';
 				printf("Title: '%s'\n", data + sizeof(struct carps_doc_info));
 				break;
 			case CARPS_DOC_INFO_USER:
+				if (unknown != 0x11)
+					printf("!!!!!!!! ");
 				data[sizeof(struct carps_doc_info) + info->data_len] = '\x0';
 				printf("User: '%s'\n", data + sizeof(struct carps_doc_info));
+				break;
+			case CARPS_DOC_INFO_TIME:
+				time = (void *)data;
+				printf("Time: %04d-%02d-%02d (%s) %02d:%02d:%02d.%d\n",
+					(time->year << 4) | (time->year_month >> 4),
+					time->year_month & 0x0f,
+					time->day >> 3,
+					weekday[time->day & 0x7],
+					time->hour,
+					time->min,
+					time->sec_msec >> 2,
+					((time->sec_msec & 0x3) << 8) | time->msec);
 				break;
 			default:
 				printf("Unknown: type=0x%x, unknown=0x%x, data_len=0x%x\n", type, unknown, info->data_len);

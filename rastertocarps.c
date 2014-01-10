@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 #include <cups/ppd.h>
 #include <cups/raster.h>
 #include "carps.h"
@@ -578,6 +579,7 @@ char *ppd_get(ppd_file_t *ppd, const char *name) {
 int main(int argc, char *argv[]) {
 	char buf[BUF_SIZE];
 	struct carps_doc_info *info;
+	struct carps_time *doc_time;
 	struct carps_print_params params;
 	char tmp[100];
 	bool pbm_mode = false;
@@ -667,13 +669,26 @@ int main(int argc, char *argv[]) {
 	info->data_len = strlen(user_name) > 255 ? 255 : strlen(user_name);
 	strncpy(buf + sizeof(struct carps_doc_info), user_name, 255);
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(user_name), stdout);
-	/* document info - unknown */
-	info = (void *)buf;
-	info->type = cpu_to_be16(0x09);
-	info->unknown = cpu_to_be16(0x00);
-	info->data_len = 0x07;
-	memset(buf + sizeof(struct carps_doc_info), 0, 5);
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + 5, stdout);
+	/* document info - time */
+	time_t timestamp = time(NULL);
+	struct tm *tm = gmtime(&timestamp);
+	doc_time = (void *)buf;
+	memset(doc_time, 0, sizeof(struct carps_time));
+	doc_time->type = cpu_to_be16(CARPS_DOC_INFO_TIME);
+	if (!pbm_mode) {
+		doc_time->year = (1900 + tm->tm_year) >> 4;
+		doc_time->year_month = ((1900 + tm->tm_year) << 4) | (tm->tm_mon + 1);
+		doc_time->day = (tm->tm_mday << 3) | tm->tm_wday;
+		doc_time->hour = tm->tm_hour;
+		doc_time->min = tm->tm_min;
+		doc_time->sec_msec = tm->tm_sec << 2;
+	} else {
+		/* MF5730 driver does not fill the time data, maybe because of a bug? */
+		/* Printer accepts data with time so we always fill it in. */
+		/* But we use this for test purposes so the output file does not change with time */
+		doc_time->day = 7;
+	}
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_time), stdout);
 	/* begin 1 */
 	memset(buf, 0, 4);
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN1, buf, 4, stdout);
