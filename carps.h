@@ -19,7 +19,7 @@
 #define le16_to_cpu(x) (x)
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
-#define ROUND_UP_MULTIPLE(n,m) (((n) + (m) -1) & ~((m) - 1))
+#define ROUND_UP_MULTIPLE(n, m) (((n) + (m) - 1) & ~((m) - 1))
 
 struct carps_header {
 	u8 magic1;	/* 0xCD */

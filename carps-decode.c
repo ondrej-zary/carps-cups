@@ -31,22 +31,22 @@ void dump_data(u8 *data, u16 len) {
 }
 
 const char *bin_n(u16 x, u8 n) {
-    static char b[9];
-    b[0] = '\0';
+	static char b[9];
+	b[0] = '\0';
 
-    for (u16 i = 1 << (n - 1); i > 0; i >>= 1)
-        strcat(b, (x & i) ? "1" : "0");
+	for (u16 i = 1 << (n - 1); i > 0; i >>= 1)
+		strcat(b, (x & i) ? "1" : "0");
 
-    return b;
+	return b;
 }
 
 const char *bin(u8 x) {
-    return bin_n(x, 8);
+	return bin_n(x, 8);
 }
 
 long block_pos;
 
-#define NO_HEADER 	(1 << 0)
+#define NO_HEADER	(1 << 0)
 int get_block(u8 *buf, FILE *f, int flags) {
 	u8 *data;
 	static int i = 0;
@@ -237,9 +237,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	int width, height;
 
 	u8 *start = data;
-	
+
 	memset(dictionary, 0xaa, DICT_SIZE);
-	
+
 	if (data[0] != 0x01)
 		printf("!!!!!!!!");
 
@@ -253,7 +253,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		} else if (i == 1)	/* data begins immediately */
 			break;
 		if (isprint(data[i]))
-			printf("%c",data[i]);
+			printf("%c", data[i]);
 		else
 			break;
 	}
@@ -395,7 +395,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 
 	printf("\n");
 
- 	return 0;
+	return 0;
 }
 
 void usage() {
@@ -426,7 +426,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (argc > 2 && !strcmp(argv[2], "--header"))
 		output_header = true;
-	
+
 	while (!feof(f)) {
 		ret = get_block(buf, f, 0);
 		if (ret < 0)
@@ -503,7 +503,7 @@ int main(int argc, char *argv[]) {
 			if (len != 4 || data[0] != 0x00 || data[1] != 0x00 || data[2] != 0x00 || data[3] != 0x00)
 				printf("!!!!!!!!");
 			printf("\n");
-			break;			
+			break;
 		case CARPS_BLOCK_PARAMS: {
 			struct carps_print_params *params = (void *)data;
 			printf("PRINT PARAMETERS: ");
