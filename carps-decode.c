@@ -30,12 +30,6 @@ void dump_data(u8 *data, u16 len) {
 	printf("\n");
 }
 
-void dump_data_dexor(u8 *data, u16 len) {
-	for (int i = 0; i < len; i++)
-		printf("%02hhx ", data[i] ^ PRINT_DATA_XOR);
-	printf("\n");
-}
-
 const char *bin_n(u16 x, u8 n) {
     static char b[9];
     b[0] = '\0';
@@ -70,7 +64,7 @@ int get_block(u8 *buf, FILE *f, int flags) {
 		printf("========== BLOCK %d ==========\n", i++);
 		print_header((struct carps_header *)buf);
 	} else {
-		struct carps_header *header = buf;
+		struct carps_header *header = (void *)buf;
 		printf("BLOCK %d (len=%d): ", i++, be16_to_cpu(header->data_len));
 	}
 
@@ -106,20 +100,17 @@ u8 get_bits(u8 **data, u16 *len, u8 *bitpos, u8 n) {
 			printf("%s DATA UNDERFLOW\n", bin_n(bits, i));
 			return 0;
 		}
-//		printf("i=%d, *data=%p, *len=%d, *bitpos=%d\n", i, *data, *len, *bitpos);
 		byte = *data[0] ^ PRINT_DATA_XOR;
 		bits <<= 1;
 		bits |= ((byte << *bitpos) & 0x80) >> 7;
 		(*bitpos)++;
 		if (*bitpos > 7) {
-//			printf("input=0x%02x ", *data[0]);
 			(*data)++;
 			(*len)--;
 			*bitpos = 0;
 		}
 	}
 	printf("%s ", bin_n(bits, n));
-//	printf("%s (len=%d)", bin_n(bits, n), *len);
 
 	return bits;
 }
@@ -254,9 +245,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 
 	for (i = 1; i < len; i++) {
 		if (data[i] == ESC) {	/* escape sequence begin */
-			if (in_escape) {
+			if (in_escape)
 				printf("\n");
-			}
 			in_escape = true;
 			printf("ESC");
 			continue;
@@ -293,10 +283,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		printf("\n");
 		return -1;
 	}
-////////////
-//	printf("\n");
-//	return;
-//////////
+
 	struct carps_print_header *header = (void *)data;
 	if (header->one != 0x01 || header->two != 0x02 || header->four != 0x04 || header->eight != 0x08 || header->zero1 != 0x0000 || header->magic != 0x50
 			|| header->zero2 != 0x00) {
@@ -329,22 +316,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		printf("ok, we have %d bytes\n", len);
 	}
 	printf("len=%d", len);
-//	printf("\n");
-//	dump_data_dexor(data, len);
 	printf("\n");
 
 	u8 bitpos = 0;
-/*	printf("%s ", bin(data[0] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[1] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[2] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[3] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[4] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[5] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[6] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[7] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[8] ^ PRINT_DATA_XOR));
-	printf("%s ", bin(data[9] ^ PRINT_DATA_XOR));
-	printf("\n");*/
 
 	while (len) {
 		printf("out_pos: 0x%x, line_num=%d, line_pos=%d (%d), len=%d, in_pos=0x%x ", out_bytes, line_num, line_pos, line_pos * 8, len, block_pos + data - start);
@@ -372,7 +346,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 								base = count * 128;
 								break;
 							case 0b10:
-								printf("block end marker???\n");
+								printf("block end marker\n");
 								return 0;
 							default:
 								printf("!!!!!!!! 0b%s\n", bin_n(bits, 2));
@@ -425,9 +399,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 }
 
 void usage() {
-	printf("usage: carps-decode <file>\n");
+	printf("usage: carps-decode <file> [--header]\n");
 }
-
 
 int main(int argc, char *argv[]) {
 	u8 buf[BUF_SIZE];
@@ -564,19 +537,6 @@ int main(int argc, char *argv[]) {
 			break;
 		case CARPS_BLOCK_PRINT:
 			printf("PRINT DATA 0x%02x", data[0]);
-//			dump_data(data, len);
-//			printf("\n");
-			/* read next blocks until the strip is complete to avoid decoding problems on block boundaries */
-/*			if (data[1] != 0x1b) {//fixme
-//				do {
-					printf("reading next block\n");
-					ret = get_block(data + len, f, NO_HEADER);
-					if (ret < 0)
-						return ret;
-					else
-						len += ret;
-//				} while (buf2[1] != 0x1b);
-			}*/
 			decode_print_data(data, len, f, fout);
 			break;
 		default:
