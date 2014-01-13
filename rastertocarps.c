@@ -146,7 +146,7 @@ int fls(unsigned int n) {
 }
 
 int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
-	int num_bits; 
+	int num_bits;
 	int bits = 0;
 	DBG("encode_number(%d)\n", num);
 
@@ -262,7 +262,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 
-	while ( ( (f && !feof(f)) || (ras) ) && line_num < *num_lines) {
+	while (((f && !feof(f)) || (ras)) && line_num < *num_lines) {
 		memset(cur_line, 0, MAX_LINE_LEN);
 		if (ras) {
 			DBG("cupsRasterReadPixels(%p, %p, %d)\n", ras, cur_line, line_len_file);
@@ -423,7 +423,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	}
 
 	*num_lines = line_num;
-	
+
 	return len;
 }
 
@@ -433,7 +433,7 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	bool last = false;
 	char buf[BUF_SIZE], buf2[BUF_SIZE];
 	char *buf_pos;
-	
+
 	if (num_lines > height) {
 		DBG("num_lines := %d\n", height);
 		num_lines = height;
@@ -554,8 +554,7 @@ char *ppd_get(ppd_file_t *ppd, const char *name) {
 	if (attr) {
 		fprintf(stderr, "attr->value=%s\n", attr->value);
 		return attr->value;
-	}
-	else {
+	} else {
 		fprintf(stderr, "attr is NULL\n");
 		ppd_choice_t *choice;
 		choice = ppdFindMarkedChoice(ppd, name);
@@ -614,7 +613,8 @@ int main(int argc, char *argv[]) {
 		cups_option_t *options;
 
 		if (argc > 6) {
-			if ((fd = open(argv[6], O_RDONLY)) == -1) {
+			fd = open(argv[6], O_RDONLY);
+			if (fd == -1) {
 				perror("ERROR: Unable to open raster file - ");
 				return 1;
 			}
@@ -730,9 +730,8 @@ int main(int argc, char *argv[]) {
 			}
 
 			/* read raster data */
-			while (height > 0) {
+			while (height > 0)
 				height -= encode_print_block(height, NULL, ras);
-			}
 			/* end of page */
 			u8 page_end[] = { 0x01, 0x0c };
 			write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
@@ -742,9 +741,8 @@ int main(int argc, char *argv[]) {
 		fill_print_data_header(buf, 600, WEIGHT_PLAIN, "A4", 0, 0);	/* 600 dpi, plain paper, A4 */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* print data */
-		while (!feof(f) && height > 0) {
+		while (!feof(f) && height > 0)
 			height -= encode_print_block(height, f, NULL);
-		}
 		/* end of page */
 		u8 page_end[] = { 0x01, 0x0c };
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
