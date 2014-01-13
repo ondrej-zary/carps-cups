@@ -45,16 +45,6 @@ void write_block(u8 data_type, u8 block_type, void *data, u16 data_len, FILE *st
 	global_outpos += sizeof(header) + data_len;
 }
 
-const char *bin_n(u8 x, u8 n) {
-    static char b[9];
-    b[0] = '\0';
-
-    for (u8 i = 1 << (n - 1); i > 0; i >>= 1)
-        strcat(b, (x & i) ? "1" : "0");
-
-    return b;
-}
-
 /* put n bits of data */
 void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 	DBG("put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));

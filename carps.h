@@ -119,3 +119,13 @@ enum carps_paper_size {
 	PAPER_ENV_C5	= 66,
 	PAPER_CUSTOM	= 80,
 };
+
+const char *bin_n(u16 x, u8 n) {
+	static char b[9];
+	b[0] = '\0';
+
+	for (u16 i = 1 << (n - 1); i > 0; i >>= 1)
+		strcat(b, (x & i) ? "1" : "0");
+
+	return b;
+}

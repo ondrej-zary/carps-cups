@@ -30,20 +30,6 @@ void dump_data(u8 *data, u16 len) {
 	printf("\n");
 }
 
-const char *bin_n(u16 x, u8 n) {
-	static char b[9];
-	b[0] = '\0';
-
-	for (u16 i = 1 << (n - 1); i > 0; i >>= 1)
-		strcat(b, (x & i) ? "1" : "0");
-
-	return b;
-}
-
-const char *bin(u8 x) {
-	return bin_n(x, 8);
-}
-
 long block_pos;
 
 #define NO_HEADER	(1 << 0)
@@ -364,7 +350,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					break;
 				case 0b01: /* 1101 */
 					bits = get_bits(&data, &len, &bitpos, 8);
-					printf("byte immediate 0b%s\n", bin(bits));
+					printf("byte immediate 0b%s\n", bin_n(bits, 8));
 					output_byte(bits, dictionary, fout);
 					break;
 				case 0b00: /* 1100 */
