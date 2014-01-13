@@ -126,7 +126,6 @@ CARPS_Driver_V300_W32_us_EN.exe (CNAR0U.INF):
 "Canon L120"			= L120,USBPRINT\CanonL120acdf,CanonL120acdf,"L120"
 "Canon LC310/L390/L408S"	= LC310,USBPRINT\CanonLC310/L390/L408bffd,CanonLC310/L390/L408bffd,"LC310/L390/L408S"
 
-BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
 @ imageCLASS D300: 15ppm, no image refinement
 @ LASERCLASS 500: 15ppm, no image refinement
 @ FP-L170/MF350/L380/L398: 19ppm, has image refinement
@@ -142,7 +141,6 @@ CARPS_Driver_V300_W32_uk_EN.exe (CNAR0K.INF):
 "Canon L180/L380S/L398S"	= L180,USBPRINT\CanonL180/L380S/L398c786,CanonL180/L380S/L398c786,"L180/L380S/L398S"
 "Canon LC310/L390/L408S"	= LC310,USBPRINT\CanonLC310/L390/L408bffd,CanonLC310/L390/L408bffd,"LC310/L390/L408S"
 
-BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
 @ PC-D300/FAX-L400/ICD300: 14ppm, no image refinement
 @ L180/L380S/L398S: 18ppm, has image refinement
 
@@ -154,7 +152,6 @@ MF5600_Series_MFDrivers_W32_uk_EN.exe (MF5600AK.INF):
 
 @ MF5630: 18ppm, has image refinement
 @ MF5650: 18ppm, has image refinement
-BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
 
 --------------
 
@@ -162,7 +159,6 @@ MF3110_MFDrivers_W32_us_EN.exe (MF3110AU.INF):
 "Canon MF3110"		= MF3110,USBPRINT\CanonMF31102fe8,"MF3110"
 
 @ MF3110: 21ppm, has image refinement (also for MF3111)
-BLOCK 3 (len=10): DOCUMENT INFORMATION: !!!!!!!! Unknown: type=0x9, unknown=0x7de1, data_len=0x43
 
 --------------
 
@@ -176,4 +172,8 @@ MF3240_MFDrivers_W32_us_EN.exe (MF3200AU.INF):
 MF8170_8180_MFDrivers_W32_us_EN-1.exe (MF8100AU.INF): 
 "Canon MF8100 Series"	= MF8100,USBPRINT\CanonMF8100_Series5D87
 
-! MF8100_Series: 4 ppm, COLOR!!!!!, ESC[600;2;32;32;;64;0'c
+! MF8100_Series: 4 ppm, COLOR!!!!!, 2 paper sources, ESC[600;2;32;32;;64;0'c (BW = ESC[600;2;0;32;;64;0'c)
+ESC[0"p = B/W
+ESC[1"p = COLOR
+ESC[11q = casette 1
+ESC[10q = multi-purpose tray
