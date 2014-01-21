@@ -11,6 +11,7 @@
 #define BUF_SIZE 65536
 
 #define MASK(n)	((1 << n) - 1)
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #define be16_to_cpu(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
 #define cpu_to_be16(x) be16_to_cpu(x)

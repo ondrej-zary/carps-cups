@@ -74,43 +74,55 @@ int width, height, dpi;
 u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];///////////
 u16 line_pos;
 
-int count_run_length(int pos) {
+int count_run_length(int line_pos, int line_num, __attribute__((unused)) int param) {
 	int i;
 	u8 first;
 
-	if (pos < 0)	/* will work only for -1 */
-		first = last_lines[0][line_len - pos + 1];
-	else
-		first = cur_line[pos];
+	if (line_num == 0 && line_pos == 0)	/* prevent -1 on first line */
+		return 0;
 
-	for (i = pos + 1; i < line_len; i++)
+	line_pos -= 1;
+
+	if (line_pos < 0)	/* will work only for -1 */
+		first = last_lines[0][line_len - line_pos + 1];
+	else
+		first = cur_line[line_pos];
+
+	for (i = line_pos + 1; i < line_len; i++)
 		if (cur_line[i] != first)
 			break;
 
-	return i - pos;
+	return i - line_pos - 1;
 }
 
-int count_previous(int pos, int num_last) {
+int count_prev(int line_pos, int line_num, int num_last) {
 	int i;
+	if (line_num <= num_last)
+		return 0;
 
-	for (i = pos; i < line_len; i++)
+	for (i = line_pos; i < line_len; i++)
 		if (cur_line[i] != last_lines[num_last][i])
 			break;
 
-	return i - pos;
+	return i - line_pos;
 }
 
-int count_this(int pos, int offset, int max) {
+int count_this(int line_pos, __attribute__((unused)) int line_num, int offset) {
 	int i;
+	int max = 0;
+	if (line_pos < -offset)
+		return 0;
+	if (offset == -80)	/* does not use prefix: 127 is max */
+		max = 127;
 
-	for (i = pos; i < line_len; i++)
+	for (i = line_pos; i < line_len; i++)
 		if (cur_line[i] != cur_line[i + offset])
 			break;
 
-	if (max && i - pos > max)
+	if (max && i - line_pos > max)
 		return max;
 
-	return i - pos;
+	return i - line_pos;
 }
 
 int dict_search(u8 byte, u8 *dict) {
@@ -182,10 +194,14 @@ int encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
 	return 8 + encode_number(data, len, bitpos, num / 128);
 }
 
-int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count, bool twobyte_flag_change) {
+int encode_last(char **data, u16 *len, u8 *bitpos, int count, __attribute__((unused)) bool *prev8_flag, bool *twobyte_flag, int num_last) {
 	int bits = 0;
-	int len2 = 0;
+	u16 len2 = 0;
 	u8 bitpos2 = 0;
+	bool twobyte_flag_change = (num_last == -1) ? *twobyte_flag : !*twobyte_flag;
+
+	if (len) /* change flag only if this encoding is really used */
+		*twobyte_flag = (num_last == -2);
 
 	if (!len)
 		len = &len2;
@@ -206,10 +222,14 @@ int encode_last_bytes(char **data, u16 *len, u8 *bitpos, int count, bool twobyte
 	return bits + encode_number(data, len, bitpos, count);
 }
 
-int encode_previous(char **data, u16 *len, u8 *bitpos, int count, bool prev8_flag_change) {
+int encode_prev(char **data, u16 *len, u8 *bitpos, int count, bool *prev8_flag, __attribute__((unused)) bool *twobyte_flag, int num_last) {
 	int bits = 0;
-	int len2 = 0;
+	u16 len2 = 0;
 	u8 bitpos2 = 0;
+	bool prev8_flag_change = (num_last == 3) ? *prev8_flag : !*prev8_flag;
+
+	if (len) /* change flag only if this encoding is really used */
+		*prev8_flag = (num_last == 7);
 
 	if (!len)
 		len = &len2;
@@ -237,8 +257,8 @@ int encode_dict(char **data, u16 *len, u8 *bitpos, u8 pos) {
 	return 2 + 4;
 }
 
-int encode_80(char **data, u16 *len, u8 *bitpos, int count) {
-	int len2 = 0;
+int encode_80(char **data, u16 *len, u8 *bitpos, int count, __attribute__((unused)) bool *prev8_flag, __attribute__((unused)) bool *twobyte_flag, __attribute__((unused)) int param) {
+	u16 len2 = 0;
 	u8 bitpos2 = 0;
 
 	if (!len)
@@ -251,6 +271,15 @@ int encode_80(char **data, u16 *len, u8 *bitpos, int count) {
 	return 5 + encode_number(data, len, bitpos, count);
 }
 
+struct print_encoder {
+	char *name;
+	int (*get_count)(int line_pos, int line_num, int param);
+	int (*encode)(char **data, u16 *len, u8 *bitpos, int count, bool *prev8_flag, bool *twobyte_flag, int param);
+	int param;
+	int ratio;
+	int count;
+};
+
 u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
@@ -259,6 +288,14 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	u8 dictionary[DICT_SIZE];
 	bool prev8_flag = false;
 	bool twobyte_flag = false;
+	char *start = out;
+	struct print_encoder encoders[] = {
+		{ .name = "@-80", .get_count = count_this, .encode = encode_80, .param = -80 },
+		{ .name = "run_len", .get_count = count_run_length, .encode = encode_last, .param = -1 },
+		{ .name = "@-2", .get_count = count_this, .encode = encode_last, .param = -2 },
+		{ .name = "previous[3]", .get_count = count_prev, .encode = encode_prev, .param = 3 },
+		{ .name = "previous[7]", .get_count = count_prev, .encode = encode_prev, .param = 7 },
+	};
 
 	memset(dictionary, 0xaa, DICT_SIZE);
 
@@ -275,103 +312,35 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 
 		while (line_pos < line_len) {
 			DBG("line_pos=%d, outpos=%d: ", line_pos, global_outpos + out - start);
-			int count_80 = 0, count_2, count_last = 0, count_prev3 = 0, count_prev7 = 0;
-			int bits_80 = 0, bits_2 = 0, bits_last = 0, bits_prev3 = 0, bits_prev7 = 0;
-			unsigned int data_80 = 0, data_2, data_last = 0, data_prev3 = 0, data_prev7 = 0;
-			int ratio_80, ratio_2, ratio_last, ratio_prev3, ratio_prev7;
-			void *p;
-
-			if (line_pos >= 80) {
-				count_80 = count_this(line_pos, -80, 127); /* does not use prefix: 127 is max */
-				if (count_80 > 1) {
-					p = &data_80;
-					bits_80 = encode_80(&p, NULL, NULL, count_80);
+			/* try all compression methods */
+			for (unsigned int i = 0; i < ARRAY_SIZE(encoders); i++) {
+				int bits = 0;
+				encoders[i].count = encoders[i].get_count(line_pos, line_num, encoders[i].param);
+				if (encoders[i].count > 1) {
+					char dummy[10];
+					char *p = &dummy[0];
+					bits = encoders[i].encode(&p, NULL, NULL, encoders[i].count, &prev8_flag, &twobyte_flag, encoders[i].param);
+					encoders[i].ratio = bits ? encoders[i].count * 80 / bits : 0;
+				} else {
+					encoders[i].ratio = 0;
 				}
+				DBG("%s=%d, %d bits, ratio=%d\n", encoders[i].name, encoders[i].count, bits, encoders[i].ratio);
 			}
-			if (line_pos >= 2) {
-				count_2 = count_this(line_pos, -2, 0);
-				if (count_2 > 1) {
-					p = &data_2;
-					bits_2 = encode_last_bytes(&p, NULL, NULL, count_2, !twobyte_flag);
+			/* choose the best one */
+			int best_ratio = 0;
+			int best_encoder;
+			for (unsigned int i = 0; i < ARRAY_SIZE(encoders); i++)
+				if (encoders[i].ratio > best_ratio) {
+					best_ratio = encoders[i].ratio;
+					best_encoder = i;
 				}
-			}
-			if (line_num > 0 || line_pos > 0) {	/* prevent -1 on first line */
-				count_last = count_run_length(line_pos - 1) - 1;
-				if (count_last > 1) {
-					p = &data_last;
-					bits_last = encode_last_bytes(&p, NULL, NULL, count_last, twobyte_flag);
-				}
-			}
-			if (line_num > 3) {
-				count_prev3 = count_previous(line_pos, 3);
-				if (count_prev3 > 1) {
-					p = &data_prev3;
-					bits_prev3 = encode_previous(&p, NULL, NULL, count_prev3, prev8_flag);
-				}
-			}
-			if (line_num > 7) {
-				count_prev7 = count_previous(line_pos, 7);
-				if (count_prev7 > 1) {
-					p = &data_prev7;
-					bits_prev7 = encode_previous(&p, NULL, NULL, count_prev7, !prev8_flag);
-				}
-			}
-
-			ratio_80 = bits_80 ? count_80*80/bits_80 : 0;
-			ratio_2 = bits_2 ? count_2*80/bits_2 : 0;
-			ratio_last = bits_last ? count_last*80/bits_last : 0;
-			ratio_prev3 = bits_prev3 ? count_prev3*80/bits_prev3 : 0;
-			ratio_prev7 = bits_prev7 ? count_prev7*80/bits_prev7 : 0;
-
-			DBG("@-80=%d, %d bits, ratio=%d\n", count_80, bits_80, ratio_80);
-			DBG("@-2=%d, %d bits, ratio=%d\n", count_2, bits_2, ratio_2);
-			DBG("run_len=%d, %d bits, ratio=%d\n", count_last, bits_last, ratio_last);
-			DBG("previous [3] count=%d, %d bits, ratio=%d\n", count_prev3, bits_prev3, ratio_prev3);
-			DBG("previous [7] count=%d, %d bits, ratio=%d\n", count_prev7, bits_prev7, ratio_prev7);
-
-			if (ratio_80 > 0 && ratio_80 >= ratio_2 && ratio_80 >= ratio_last && ratio_80 >= ratio_prev3 && ratio_80 >= ratio_prev7) {
-				DBG("@-80\n");
-				encode_80(&out, &len, &bitpos, count_80);
-				line_pos += count_80;
+			/* if found, use it */
+			if (best_ratio) {
+				DBG("Using %s\n", encoders[best_encoder].name);
+				encoders[best_encoder].encode(&out, &len, &bitpos, encoders[best_encoder].count, &prev8_flag, &twobyte_flag, encoders[best_encoder].param);
+				line_pos += encoders[best_encoder].count;
 				continue;
 			}
-
-			if (ratio_2 > 0 && ratio_2 >= ratio_80 && ratio_2 >= ratio_last && ratio_2 >= ratio_prev3 && ratio_2 >= ratio_prev7) {
-				DBG("@-2\n");
-				encode_last_bytes(&out, &len, &bitpos, count_2, !twobyte_flag);
-				if (!twobyte_flag)
-					twobyte_flag = true;
-				line_pos += count_2;
-				continue;
-			}
-
-			if (ratio_last > 0 && ratio_last >= ratio_80 && ratio_last >= ratio_2 && ratio_last >= ratio_prev3 && ratio_last >= ratio_prev7) {
-				DBG("run_len\n");
-				encode_last_bytes(&out, &len, &bitpos, count_last, twobyte_flag);
-				if (twobyte_flag)
-					twobyte_flag = false;
-				line_pos += count_last;
-				continue;
-			}
-
-			if (ratio_prev3 > 0 && ratio_prev3 >= ratio_prev7) {
-				DBG("prev3\n");
-				encode_previous(&out, &len, &bitpos, count_prev3, prev8_flag);
-				if (prev8_flag)
-					prev8_flag = false;
-				line_pos += count_prev3;
-				continue;
-			}
-
-			if (ratio_prev7 > 0 && ratio_prev7 >= ratio_prev3) {
-				DBG("prev7\n");
-				encode_previous(&out, &len, &bitpos, count_prev7, !prev8_flag);
-				if (!prev8_flag)
-					prev8_flag = true;
-				line_pos += count_prev7;
-				continue;
-			}
-
 			/* dictionary */
 			int pos = dict_search(cur_line[line_pos], dictionary);
 			if (pos >= 0) {
