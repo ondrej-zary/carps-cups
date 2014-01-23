@@ -20,3 +20,17 @@ L180/L380S/L398S		| should work
 L120				| not supported - different data format
 MF3200 Series			| not supported - different data format, different header
 MF8100 Series			| not supported - different data format, color
+
+
+Problems with CUPS libusb backend
+---------------------------------
+The libusb backend used by CUPS since 1.4.x is crap. The code is full of quirks for
+various printers and it's no surprise that it does not work properly with CARPS printers
+(at least MF5730) too - the first document prints but nothing more is printed until the
+printer is turned off and on again.
+
+The solution is to set printer URI to the usblp device, e.g. "file:///dev/usb/lp0".
+For this to work, file: device URIs must be enabled in CUPS configuration:
+(/etc/cups/cups-files.conf)
+
+    FileDevice Yes
