@@ -47,6 +47,8 @@ void write_block(u8 data_type, u8 block_type, void *data, u16 data_len, FILE *st
 
 /* put n bits of data */
 void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
+	if (!data)
+		return;
 	DBG("put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));
 	bits <<= 8 - n;
 	for (int i = 0; i < n; i++) {
@@ -193,17 +195,10 @@ int encode_prefix(char **data, u16 *len, u8 *bitpos, int num) {
 
 int encode_last(char **data, u16 *len, u8 *bitpos, int count, __attribute__((unused)) bool *prev8_flag, bool *twobyte_flag, int num_last) {
 	int bits = 0;
-	u16 len2 = 0;
-	u8 bitpos2 = 0;
 	bool twobyte_flag_change = (num_last == -1) ? *twobyte_flag : !*twobyte_flag;
 
-	if (len) /* change flag only if this encoding is really used */
+	if (data) /* change flag only if this encoding is really used */
 		*twobyte_flag = (num_last == -2);
-
-	if (!len)
-		len = &len2;
-	if (!bitpos)
-		bitpos = &bitpos2;
 
 	if (count >= 128)
 		bits += encode_prefix(data, len, bitpos, count);
@@ -221,17 +216,10 @@ int encode_last(char **data, u16 *len, u8 *bitpos, int count, __attribute__((unu
 
 int encode_prev(char **data, u16 *len, u8 *bitpos, int count, bool *prev8_flag, __attribute__((unused)) bool *twobyte_flag, int num_last) {
 	int bits = 0;
-	u16 len2 = 0;
-	u8 bitpos2 = 0;
 	bool prev8_flag_change = (num_last == 3) ? *prev8_flag : !*prev8_flag;
 
-	if (len) /* change flag only if this encoding is really used */
+	if (data) /* change flag only if this encoding is really used */
 		*prev8_flag = (num_last == 7);
-
-	if (!len)
-		len = &len2;
-	if (!bitpos)
-		bitpos = &bitpos2;
 
 	if (count >= 128)
 		bits += encode_prefix(data, len, bitpos, count);
@@ -255,14 +243,6 @@ int encode_dict(char **data, u16 *len, u8 *bitpos, u8 pos) {
 }
 
 int encode_80(char **data, u16 *len, u8 *bitpos, int count, __attribute__((unused)) bool *prev8_flag, __attribute__((unused)) bool *twobyte_flag, __attribute__((unused)) int param) {
-	u16 len2 = 0;
-	u8 bitpos2 = 0;
-
-	if (!len)
-		len = &len2;
-	if (!bitpos)
-		bitpos = &bitpos2;
-
 	put_bits(data, len, bitpos, 5, 0b11110);
 
 	return 5 + encode_number(data, len, bitpos, count);
@@ -316,9 +296,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 				int bits = 0;
 				encoders[i].count = encoders[i].get_count(line_pos, line_num, encoders[i].param);
 				if (encoders[i].count > 1) {
-					char dummy[10];
-					char *p = &dummy[0];
-					bits = encoders[i].encode(&p, NULL, NULL, encoders[i].count, &prev8_flag, &twobyte_flag, encoders[i].param);
+					bits = encoders[i].encode(NULL, NULL, NULL, encoders[i].count, &prev8_flag, &twobyte_flag, encoders[i].param);
 					encoders[i].ratio = bits ? encoders[i].count * 80 / bits : 0;
 				} else {
 					encoders[i].ratio = 0;
