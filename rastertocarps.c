@@ -49,15 +49,12 @@ void write_block(u8 data_type, u8 block_type, void *data, u16 data_len, FILE *st
 void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 	DBG("put_bits len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, n));
 	bits <<= 8 - n;
-//	printf("put_bits2 len=%d, pos=%d, n=%d, bits=%s\n", *len, *bitpos, n, bin_n(bits, 8));
 	for (int i = 0; i < n; i++) {
 		/* clear the byte first */
 		if (*bitpos == 0)
 			*data[0] = 0;
-//		printf("data[0] = %s", bin_n(*data[0], 8));
 		if (bits & 0x80)
 			*data[0] |= 1 << (7 - *bitpos);
-//		printf("->%s\n", bin_n(*data[0], 8));
 		bits <<= 1;
 		(*bitpos)++;
 		if (*bitpos > 7) {
@@ -288,7 +285,9 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	u8 dictionary[DICT_SIZE];
 	bool prev8_flag = false;
 	bool twobyte_flag = false;
+#ifdef DEBUG
 	char *start = out;
+#endif
 	struct print_encoder encoders[] = {
 		{ .name = "@-80", .get_count = count_this, .encode = encode_80, .param = -80 },
 		{ .name = "run_len", .get_count = count_run_length, .encode = encode_last, .param = -1 },
