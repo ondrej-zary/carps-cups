@@ -12,6 +12,7 @@
 #include "carps.h"
 
 //#define DEBUG
+//#define PBM
 
 #define ERR(fmt, args ...)	fprintf(stderr, "ERROR: CARPS " fmt "\n", ##args);
 #define WARN(fmt, args ...)	fprintf(stderr, "WARNING: CARPS " fmt "\n", ##args);
@@ -516,7 +517,11 @@ int main(int argc, char *argv[]) {
 	struct carps_time *doc_time;
 	struct carps_print_params params;
 	char tmp[100];
+#ifdef PBM
 	bool pbm_mode = false;
+#else
+#define pbm_mode 0
+#endif
 	FILE *f;
 	cups_raster_t *ras = NULL;
 	cups_page_header2_t page_header;
@@ -524,16 +529,19 @@ int main(int argc, char *argv[]) {
 	int fd;
 	ppd_file_t *ppd;
 	bool header_written = false;
-
+#ifdef PBM
 	if (argc < 2 || argc == 3 || argc == 4 || argc == 5 || argc > 7) {
 		fprintf(stderr, "usage: rastertocarps <file.pbm>\n");
+#else
+	if (argc < 6 || argc > 7) {
+#endif
 		fprintf(stderr, "usage: rastertocarps job-id user title copies options [file]\n");
 		return 1;
 	}
-
+#ifdef PBM
 	if (argc < 3)
 		pbm_mode = true;
-
+#endif
 	if (pbm_mode) {
 		f = fopen(argv[1], "r");
 		if (!f) {
