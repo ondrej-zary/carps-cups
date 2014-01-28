@@ -257,6 +257,14 @@ struct print_encoder {
 	int count;
 };
 
+struct print_encoder encoders[] = {
+	{ .name = "@-80", .get_count = count_this, .encode = encode_80, .param = -80 },
+	{ .name = "run_len", .get_count = count_run_length, .encode = encode_last, .param = -1 },
+	{ .name = "@-2", .get_count = count_this, .encode = encode_last, .param = -2 },
+	{ .name = "previous[3]", .get_count = count_prev, .encode = encode_prev, .param = 3 },
+	{ .name = "previous[7]", .get_count = count_prev, .encode = encode_prev, .param = 7 },
+};
+
 u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, char *out) {
 	u8 bitpos = 0;
 	u16 len = 0;
@@ -268,14 +276,6 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 #ifdef DEBUG
 	char *start = out;
 #endif
-	struct print_encoder encoders[] = {
-		{ .name = "@-80", .get_count = count_this, .encode = encode_80, .param = -80 },
-		{ .name = "run_len", .get_count = count_run_length, .encode = encode_last, .param = -1 },
-		{ .name = "@-2", .get_count = count_this, .encode = encode_last, .param = -2 },
-		{ .name = "previous[3]", .get_count = count_prev, .encode = encode_prev, .param = 3 },
-		{ .name = "previous[7]", .get_count = count_prev, .encode = encode_prev, .param = 7 },
-	};
-
 	memset(dictionary, 0xaa, DICT_SIZE);
 
 	while (((f && !feof(f)) || (ras)) && line_num < *num_lines) {
@@ -298,9 +298,8 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 				if (encoders[i].count > 1) {
 					bits = encoders[i].encode(NULL, NULL, NULL, encoders[i].count, &prev8_flag, &twobyte_flag, encoders[i].param);
 					encoders[i].ratio = bits ? encoders[i].count * 80 / bits : 0;
-				} else {
+				} else
 					encoders[i].ratio = 0;
-				}
 				DBG("%s=%d, %d bits, ratio=%d\n", encoders[i].name, encoders[i].count, bits, encoders[i].ratio);
 			}
 			/* choose the best one */
