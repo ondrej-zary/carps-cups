@@ -70,7 +70,7 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 
 u16 line_len, line_len_file;
 int width, height, dpi;
-u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];///////////
+u8 *last_lines[8], *cur_line;
 u16 line_pos;
 
 int count_run_length(int line_pos, int line_num, __attribute__((unused)) int param) {
@@ -279,7 +279,7 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 	memset(dictionary, 0xaa, DICT_SIZE);
 
 	while (((f && !feof(f)) || (ras)) && line_num < *num_lines) {
-		memset(cur_line, 0, MAX_LINE_LEN);
+		memset(cur_line, 0, line_len);
 		if (ras) {
 			DBG("cupsRasterReadPixels(%p, %p, %d)\n", ras, cur_line, line_len_file);
 			if (cupsRasterReadPixels(ras, cur_line, line_len_file) == 0)
@@ -553,6 +553,9 @@ int main(int argc, char *argv[]) {
 		DBG("width=%d height=%d\n", width, height);
 		line_len_file = DIV_ROUND_UP(width, 8);
 		line_len = ROUND_UP_MULTIPLE(line_len_file, 4);
+		cur_line = malloc(line_len);
+		for (int i = 0; i < 8; i++)
+			last_lines[i] = malloc(line_len);
 	} else {
 		int n;
 		cups_option_t *options;
@@ -664,6 +667,11 @@ int main(int argc, char *argv[]) {
 
 			line_len_file = page_header.cupsBytesPerLine;
 			line_len = ROUND_UP_MULTIPLE(line_len_file, 4);
+			if (!cur_line) {
+				cur_line = malloc(line_len);
+				for (int i = 0; i < 8; i++)
+					last_lines[i] = malloc(line_len);
+			}
 			height = page_header.cupsHeight;
 			width = page_header.cupsWidth;
 			dpi = page_header.HWResolution[0];
@@ -711,6 +719,12 @@ int main(int argc, char *argv[]) {
 	/* end of document */
 	buf[0] = 0;
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_END, buf, 1, stdout);
+
+	if (cur_line) {
+		free(cur_line);
+		for (int i = 0; i < 8; i++)
+			free(last_lines[i]);
+	}
 
 	return 0;
 }

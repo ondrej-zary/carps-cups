@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "carps.h"
 
@@ -139,7 +140,7 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 	return (1 << num_bits) + (~get_bits(data, len, bitpos, num_bits) & MASK(num_bits));
 }
 
-u8 last_lines[8][MAX_LINE_LEN], cur_line[MAX_LINE_LEN];
+u8 *last_lines[8], *cur_line;
 int out_bytes = 0;
 u16 line_num = 0;
 u16 line_pos;
@@ -255,6 +256,10 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		printf("width=%d, height=%d\n", width, height);
 		line_len = ROUND_UP_MULTIPLE(DIV_ROUND_UP(width, 8), 4);
 		printf("line_len=%d\n", line_len);
+		cur_line = malloc(line_len);
+		for (int i = 0; i < 8; i++)
+			last_lines[i] = malloc(line_len);
+
 		if (output_header && !header_written) {
 			fprintf(fout, "P4\n%d ", line_len * 8);
 			height_pos = ftell(fout);
@@ -536,6 +541,12 @@ int main(int argc, char *argv[]) {
 	if (output_header) {
 		fseek(fout, height_pos, SEEK_SET);
 		fprintf(fout, "%4d", line_num);
+	}
+
+	if (cur_line) {
+		free(cur_line);
+		for (int i = 0; i < 8; i++)
+			free(last_lines[i]);
 	}
 
 	fclose(fout);

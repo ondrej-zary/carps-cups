@@ -7,7 +7,6 @@
 
 #define DICT_SIZE 16
 
-#define MAX_LINE_LEN 1000
 #define BUF_SIZE 65536
 
 #define MASK(n)	((1 << n) - 1)
