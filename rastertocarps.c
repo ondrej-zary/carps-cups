@@ -497,16 +497,13 @@ void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, co
 char *ppd_get(ppd_file_t *ppd, const char *name) {
 	ppd_attr_t *attr = ppdFindAttr(ppd, name, NULL);
 
-	if (attr) {
-		fprintf(stderr, "attr->value=%s\n", attr->value);
+	if (attr)
 		return attr->value;
-	} else {
-		fprintf(stderr, "attr is NULL\n");
+	else {
 		ppd_choice_t *choice;
 		choice = ppdFindMarkedChoice(ppd, name);
 		if (!choice)
 			return NULL;
-		fprintf(stderr, "choice->choice=%s\n", choice->choice);
 		return choice->choice;
 	}
 }
