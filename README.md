@@ -1,6 +1,12 @@
 CUPS driver for Canon CARPS printers
 ====================================
 
+This provides rastertocups filter and PPD files (specified by carps.drv file) which
+allows these printers to print from Linux and possibly any other OS where CUPS is used.
+
+carps-decode is a debug tool - it decodes CARPS data (created either by rastertocups
+filter or windows drivers), producing a PBM bitmap and debug output.
+
 Printers known to use CARPS data format:
 
 Printer type (IEEE1284 ID)	| Status
