@@ -454,7 +454,7 @@ enum carps_paper_size encode_paper_size(const char *paper_size_name) {
 		return PAPER_CUSTOM;
 }
 
-void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, const char *paper_size_name, unsigned int paper_width, unsigned int paper_height) {
+void fill_print_data_header(char *buf, unsigned int copies, unsigned int dpi, unsigned int weight, const char *paper_size_name, unsigned int paper_width, unsigned int paper_height) {
 	char tmp[100];
 	enum carps_paper_size paper_size = encode_paper_size(paper_size_name);
 
@@ -488,7 +488,8 @@ void fill_print_data_header(char *buf, unsigned int dpi, unsigned int weight, co
 	/* ??? */
 	strcat(buf, "\x1b[?2h");
 	/* number of copies */
-	strcat(buf, "\x1b[1v");	/* 1 copy */
+	sprintf(tmp, "\x1b[%dv", copies);
+	strcat(buf, tmp);
 	/* resolution and ??? */
 	sprintf(tmp, "\x1b[%d;1;0;32;;64;0'c", dpi);
 	strcat(buf, tmp);
@@ -522,7 +523,7 @@ int main(int argc, char *argv[]) {
 	FILE *f;
 	cups_raster_t *ras = NULL;
 	cups_page_header2_t page_header;
-	unsigned int page = 0;
+	unsigned int page = 0, copies;
 	int fd;
 	ppd_file_t *ppd;
 	bool header_written = false;
@@ -564,6 +565,10 @@ int main(int argc, char *argv[]) {
 	} else {
 		int n;
 		cups_option_t *options;
+
+		copies = atoi(argv[4]);
+		if (copies < 1)
+			copies = 1;
 
 		if (argc > 6) {
 			fd = open(argv[6], O_RDONLY);
@@ -682,7 +687,7 @@ int main(int argc, char *argv[]) {
 			dpi = page_header.HWResolution[0];
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
 			if (!header_written) {	/* print data header */
-				fill_print_data_header(buf, dpi, page_header.cupsMediaType, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
+				fill_print_data_header(buf, copies, dpi, page_header.cupsMediaType, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 				header_written = true;
 			}
@@ -696,7 +701,7 @@ int main(int argc, char *argv[]) {
 		}
 	} else {
 		/* print data header */
-		fill_print_data_header(buf, 600, WEIGHT_PLAIN, "A4", 0, 0);	/* 600 dpi, plain paper, A4 */
+		fill_print_data_header(buf, 1, 600, WEIGHT_PLAIN, "A4", 0, 0);	/* 1 copy, 600 dpi, plain paper, A4 */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* print data */
 		while (!feof(f) && height > 0)
