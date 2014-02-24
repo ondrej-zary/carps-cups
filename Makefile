@@ -8,7 +8,7 @@ carps-decode:	carps-decode.c carps.h
 	gcc $(CFLAGS) carps-decode.c -o carps-decode
 
 rastertocarps:	rastertocarps.c carps.h
-	gcc $(CFLAGS) rastertocarps.c -o rastertocarps -lcupsimage
+	gcc $(CFLAGS) rastertocarps.c -o rastertocarps -lcupsimage -lcups
 
 ppd/*.ppd: carps.drv
 	ppdc carps.drv
