@@ -687,7 +687,11 @@ int main(int argc, char *argv[]) {
 			dpi = page_header.HWResolution[0];
 			DBG("line_len_file=%d,line_len=%d height=%d width=%d", line_len_file, line_len, height, width);
 			if (!header_written) {	/* print data header */
-				fill_print_data_header(buf, copies, dpi, page_header.cupsMediaType, page_header.cupsPageSizeName, page_header.PageSize[0], page_header.PageSize[1]);
+				char *page_size_name = page_header.cupsPageSizeName;
+				/* get page size name from PPD if cupsPageSizeName is empty */
+				if (strlen(page_size_name) == 0)
+					page_size_name = ppd_get(ppd, "PageSize");
+				fill_print_data_header(buf, copies, dpi, page_header.cupsMediaType, page_size_name, page_header.PageSize[0], page_header.PageSize[1]);
 				write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 				header_written = true;
 			}
