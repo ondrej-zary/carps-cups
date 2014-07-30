@@ -143,12 +143,9 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 }
 
 u8 *last_lines[8], *cur_line;
-int out_bytes = 0;
-u16 line_num = 0;
-u16 line_pos;
-u16 line_len;
-bool output_header = false;
-bool header_written = false;
+int out_bytes;
+u16 line_num, line_pos, line_len;
+bool output_header, header_written;
 long height_pos;
 
 void next_line(void) {

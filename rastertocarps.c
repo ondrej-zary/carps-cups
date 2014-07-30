@@ -26,7 +26,7 @@
 #define DBG(fmt, args ...)	do {} while (0)
 #endif
 
-int global_line_num = 0, global_outpos = 0;
+int global_line_num, global_outpos;
 
 void fill_header(struct carps_header *header, u8 data_type, u8 block_type, u16 data_len) {
 	memset(header, 0, sizeof(struct carps_header));
@@ -71,10 +71,9 @@ void put_bits(char **data, u16 *len, u8 *bitpos, u8 n, u8 bits) {
 	}
 }
 
-u16 line_len, line_len_file;
+u16 line_len, line_len_file, line_pos;
 int width, height, dpi;
 u8 *last_lines[8], *cur_line;
-u16 line_pos;
 
 int count_run_length(int line_pos, int line_num, __attribute__((unused)) int param) {
 	int i;
