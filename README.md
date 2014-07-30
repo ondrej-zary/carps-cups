@@ -27,6 +27,18 @@ L120				| not supported - different data format
 MF3200 Series			| not supported - different data format, different header
 MF8100 Series			| not supported - different data format, color
 
+Compiling from source
+---------------------
+Requirements: make, gcc, libcups2-dev, libcupsimage2-dev, cups-ppdc
+
+To compile, simply run "make":
+ $ make
+
+To install compiled filter and drv file, run "make install" as root:
+ # make install
+
+You can then install the printer using standard GUI tools or CUPS web interface.
+
 
 Problems with CUPS libusb backend
 ---------------------------------
