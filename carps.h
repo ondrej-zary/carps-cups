@@ -1,3 +1,5 @@
+/* CUPS driver for Canon CARPS printers */
+/* Copyright (c) 2014 Ondrej Zary */
 #define u8 unsigned char
 #define u16 unsigned short
 

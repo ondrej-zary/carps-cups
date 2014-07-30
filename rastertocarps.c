@@ -1,3 +1,5 @@
+/* CUPS driver for Canon CARPS printers */
+/* Copyright (c) 2014 Ondrej Zary */
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
