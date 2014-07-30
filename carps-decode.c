@@ -263,9 +263,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		printf("width=%d, height=%d\n", width, height);
 		line_len = ROUND_UP_MULTIPLE(DIV_ROUND_UP(width, 8), 4);
 		printf("line_len=%d\n", line_len);
-		cur_line = malloc(line_len);
+		cur_line = realloc(cur_line, line_len);
 		for (int i = 0; i < 8; i++)
-			last_lines[i] = malloc(line_len);
+			last_lines[i] = realloc(last_lines[i], line_len);
 
 		if (output_header && !header_written) {
 			fprintf(fout, "P4\n%d ", line_len * 8);
@@ -550,11 +550,9 @@ int main(int argc, char *argv[]) {
 		fprintf(fout, "%4d", line_num);
 	}
 
-	if (cur_line) {
-		free(cur_line);
-		for (int i = 0; i < 8; i++)
-			free(last_lines[i]);
-	}
+	free(cur_line);
+	for (int i = 0; i < 8; i++)
+		free(last_lines[i]);
 
 	fclose(fout);
 	fclose(f);
