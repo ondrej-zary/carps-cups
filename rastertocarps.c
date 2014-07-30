@@ -86,7 +86,7 @@ int count_run_length(int line_pos, int line_num, __attribute__((unused)) int par
 	line_pos -= 1;
 
 	if (line_pos < 0)	/* will work only for -1 */
-		first = last_lines[0][line_len - line_pos + 1];
+		first = last_lines[0][line_len - 1];
 	else
 		first = cur_line[line_pos];
 
