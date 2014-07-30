@@ -186,9 +186,14 @@ void output_byte(u8 byte, u8 *buf, FILE *fout) {
 
 void output_bytes_last(int count, int offset, FILE *fout) {
 	for (int i = 0; i < count; i++) {
-		printf("%02x ", cur_line[line_pos - offset]);
-		fwrite(&cur_line[line_pos - offset], 1, 1, fout);
-		cur_line[line_pos] = cur_line[line_pos - offset];
+		u8 byte;
+		if (line_pos - offset < 0)
+			byte = last_lines[0][line_len - offset];
+		else
+			byte = cur_line[line_pos - offset];
+		printf("%02x ", byte);
+		fwrite(&byte, 1, 1, fout);
+		cur_line[line_pos] = byte;
 		line_pos++;
 	}
 	printf("\n");
