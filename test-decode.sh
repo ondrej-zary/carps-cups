@@ -3,7 +3,8 @@
 test_decode() {
 	echo -n "$1: "
 	./carps-decode $1.prn >$1.out
-	cmp $1.pbm decoded.pbm
+	mv decoded.pbm $1.pbm.decodetest
+	cmp $1.pbm $1.pbm.decodetest
 	if [ "$?" = "0" ]; then
 		echo OK
 	fi
