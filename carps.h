@@ -12,11 +12,17 @@
 #define MASK(n)	((1 << n) - 1)
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#if defined(__BYTE_ORDER) && __BYTE_ORDER == __BIG_ENDIAN
+#define le16_to_cpu(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
+#define cpu_to_le16(x) le16_to_cpu(x)
+#define cpu_to_be16(x) (x)
+#define be16_to_cpu(x) (x)
+#else
 #define be16_to_cpu(x) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8))
 #define cpu_to_be16(x) be16_to_cpu(x)
-
 #define cpu_to_le16(x) (x)
 #define le16_to_cpu(x) (x)
+#endif
 
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 #define ROUND_UP_MULTIPLE(n, m) (((n) + (m) - 1) & ~((m) - 1))

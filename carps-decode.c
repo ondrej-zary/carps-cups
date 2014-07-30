@@ -291,14 +291,14 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		printf("zero1=0x%04x\n", header->zero1);
 		printf("magic=0x%02x\n", header->magic);
 		printf("zero2=0x%02x\n", header->zero2);
-		printf("data_len=0x%04x\n", header->data_len);
+		printf("data_len=0x%04x\n", le16_to_cpu(header->data_len));
 		printf("zero3=0x%04x\n", header->zero3);*/
 	} else {
-		printf("Data length: %d ", header->data_len);
+		printf("Data length: %d ", le16_to_cpu(header->data_len));
 		data += sizeof(struct carps_print_header);
 		len  -= sizeof(struct carps_print_header);
 		u8 *data2 = data + len;
-		while (len < header->data_len) {
+		while (len < le16_to_cpu(header->data_len)) {
 			int ret;
 			printf("we have only %d bytes: reading next block\n", len);
 			ret = get_block(data2, f, NO_HEADER);
