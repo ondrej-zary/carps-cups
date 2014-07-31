@@ -16,7 +16,7 @@ MF5750				| should work
 MF5770				| should work
 MF5630				| should work
 MF5650				| should work
-MF3110				| should work
+MF3110				| works
 imageCLASS D300			| should work
 LASERCLASS 500			| should work
 FP-L170/MF350/L380/L398		| should work
