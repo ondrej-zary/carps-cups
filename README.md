@@ -17,7 +17,7 @@ MF5770				| should work
 MF5630				| should work
 MF5650				| should work
 MF3110				| works
-imageCLASS D300			| works (tested with D320 on Ubuntu 14.04.01 LTS)
+imageCLASS D300			| works
 LASERCLASS 500			| should work
 FP-L170/MF350/L380/L398		| should work
 LC310/L390/L408S		| works
@@ -39,14 +39,12 @@ To install compiled filter and drv file, run "make install" as root:
 
 You can then install the printer using standard GUI tools or CUPS web interface.
 
-The following 2 steps are mandatory for the Canon D320 printer.
-
 
 Problems with CUPS libusb backend
 ---------------------------------
 The libusb backend used by CUPS since 1.4.x is crap. The code is full of quirks for
 various printers and it's no surprise that it does not work properly with CARPS printers
-(at least MF5730) too - the first document prints but nothing more is printed until the
+(at least MF5730 and D320) too - the first document prints but nothing more is printed until the
 printer is turned off and on again.
 
 The solution is to set printer URI to the usblp device, e.g. "file:///dev/usb/lp0".
@@ -56,23 +54,21 @@ For this to work, file: device URIs must be enabled in CUPS configuration:
     FileDevice Yes
 
 
-Canon D320 
-----------
+Multiple USB printers
+---------------------
 
-In order to maintain multiple usb devices (and not depend on a randomly assigned '/dev/usb/lpX' device number)  you need to update your udev configuration:
-In Ubuntu Ubuntu 14.04 it is like this:
+If you have multiple USB printers, the usblp devices might be assigned differently on each boot or hot-plug. To avoid this, you can create an udev rule like this (example from Ubuntu 14.04 and Canon D320):
 
-    SUBSYSTEMS=="usb",  ATTRS{ieee1284_id}=="MFG:Canon;MDL:imageCLASS D300;CLS:PRINTER;DES:Canon imageCLASS D300;CID:;CMD:LIPS;", SYMLINK+="canonD320"
+    SUBSYSTEMS=="usb", ATTRS{ieee1284_id}=="MFG:Canon;MDL:imageCLASS D300;CLS:PRINTER;DES:Canon imageCLASS D300;CID:;CMD:LIPS;", SYMLINK+="canonD320"
 
 
-If your printer has a different attributes, tweek UDEV parameters by 
+You can find your printer's IEEE1284 ID by running:
 
-    udevadm info -a /dev/usb/lpX
+    udevadm info -a --name=/dev/usb/lpX
 
-When you are done restart the udev system
+When you are done restart udev:
     sudo service udev restart
 
 Ensure that /dev/canonD320 points to /dev/usb/lpX
 
 Now you can map your printer as file:///dev/canonD320
-
