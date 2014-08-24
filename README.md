@@ -32,10 +32,16 @@ Compiling from source
 Requirements: make, gcc, libcups2-dev, libcupsimage2-dev, cups-ppdc
 
 To compile, simply run "make":
- $ make
+
+    $ make
 
 To install compiled filter and drv file, run "make install" as root:
- # sudo make install
+
+    # make install
+
+or
+
+    $ sudo make install
 
 You can then install the printer using standard GUI tools or CUPS web interface.
 
