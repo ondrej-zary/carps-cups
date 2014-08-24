@@ -73,6 +73,7 @@ You can find your printer's IEEE1284 ID by running:
     udevadm info -a --name=/dev/usb/lpX
 
 When you are done restart udev:
+
     sudo service udev restart
 
 Ensure that /dev/canonD320 points to /dev/usb/lpX
