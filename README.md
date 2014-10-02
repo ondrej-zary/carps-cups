@@ -79,3 +79,9 @@ When you are done restart udev:
 Ensure that /dev/canonD320 points to /dev/usb/lpX
 
 Now you can map your printer as file:///dev/canonD320
+
+Paper size problems
+-------------------
+CARPS printers are very sensitive to paper size.
+
+If only one page prints and the printer LCD shows "check paper size" or no pages are printed until you power cycle the printer, make sure the paper size you have set in the driver/document/application matches the size set on printer panel (LCD menus).
