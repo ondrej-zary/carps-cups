@@ -12,7 +12,7 @@ Printers known to use CARPS data format:
 Printer type (IEEE1284 ID)	| Status
 --------------------------------|--------------------------------------------------------
 MF5730				| works
-MF5750				| should work
+MF5750				| works
 MF5770				| should work
 MF5630				| works
 MF5650				| should work
