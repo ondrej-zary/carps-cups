@@ -22,7 +22,7 @@ LASERCLASS 500			| should work
 FP-L170/MF350/L380/L398		| should work
 LC310/L390/L408S		| works
 PC-D300/FAX-L400/ICD300		| works
-L180/L380S/L398S		| should work
+L180/L380S/L398S		| works
 L120				| not supported - different data format
 MF3200 Series			| not supported - different data format, different header
 MF8100 Series			| not supported - different data format, color
