@@ -109,9 +109,63 @@ Bytes per line = width/8 rounded up to multiples of 4
 
 COMPRESSED DATA format:
 -----------------------
+All compressed data is XORed by 0x43.
+Compression operates on byte level (of image data) but the encoding is bit-level (in compressed data).
+Data can be stored using 8 methods:
+
+1. Byte immediate
+Used as a last resort, when there's no compression possible.
+ENCODING: 0b1101 + 0bXXXXXXXX (data byte)
+
+2. Zero byte
+As zero bytes are very common, this is more efficient than "byte immediate".
+ENCODING: 0b11111101
+
+3. Byte from dictionary
+Dictionary stores 16 last recently used bytes. A byte encoded using one of these first three methods (immediate, zero byte, dictionary)
+is then added to the beginning (position zero) of the dictionary. If the dictionary already contains the same byte, it's removed and only kept
+at the beginning. If the byte is not already present, the last byte (position 15) is discarded and the remaining 15 bytes in the dictionary are
+moved by one towards the end. This means that frequently used bytes are kept at the beginning and rarely used bytes move to the end, eventually
+being removed.
+ENCODING: 0b10+0bXXXX (negated position in dictionary)
+
+The following methods use number and prefix encoding:
+
+4. Copy bytes from current line from position -80
+Copies N bytes from the current line, from (current - 80) position. Oviously, this can be used only if the current byte position is at least 80.
+This method does not use prefix, so the maximum byte count is 127.
+ENCODING: 0b11110 + NUMBER(byte count)
+
+5. Repeat the last byte multiple times
+Repeats the last byte N times (run-length encoding).
+The encoding is same as in the next method. The encoder and decoder (printer) maintain a flag (called TWOBYTE_FLAG here), which determines if this
+encoding goes 1 byte or 2 bytes backwards. If the flag needs to be changed, TWOBYTE_FLAG CHANGE bits are inserted after the PREFIX.
+The flag is reset to 0 at the beginning of each print data block.
+TWOBYTE_FLAG CHANGE ENCODING: 0b11
+ENCODING: [PREFIX(byte count)] + [TWOBYTE_FLAG CHANGE] + 0b1110 + NUMBER(byte count)
+
+6. Copy bytes from current line from position -2
+Copies N bytes from (current - 2) position. The encoding is same as in the previous method.
+ENCODING: [PREFIX(byte count)] + [TWOBYTE_FLAG CHANGE] + 0b1110 + NUMBER(byte count)
+
+7. Copy bytes from 3rd previous line from current position
+Copies N bytes from the current position from . The encoder and decoder (printer) maintain a flag (called PREV8_FLAG here), which determines if this
+encoding uses 3rd or 7th previous line.
+
+PREV8_FLAG CHANGE ENCODING: 0b110
+
+8. Copy bytes from 7th previous line from current position
 
 
+Number and prefix encoding:
+Number encoding can encode number from 0 to 127.
+ENCODING: 0b111111 (special case if the number is 0)
+ENCODING: 0b00 (special case if the number is 1)
+ENCODING: 0b01 + 0bX (special case if the number is 2 [X=1] or 3 [X=0])
+ENCODING: 0b1....0 (sequence of ones followed by zero, count of ones = number of following bits minus 1) + 0bX... (negated N lower bits of the number)
 
+If a bigger number needs to be encoded, a prefix is used before the number. The prefix indicates multiples of 128 to be added to the number.
+ENCODING: 0b11111100 + NUMBER(prefix/128)
 
 
 OTHER PRINTERS
