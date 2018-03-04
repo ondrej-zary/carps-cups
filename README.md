@@ -53,7 +53,16 @@ various printers and it's no surprise that it does not work properly with CARPS 
 (at least MF5730 and D320) too - the first document prints but nothing more is printed until the
 printer is turned off and on again.
 
-The solution is to set printer URI to the usblp device, e.g. "file:///dev/usb/lp0".
+Seems that the printer gets confused by repeated (re)attaching of the usblp module caused by libusb using the same device.
+There's an easy workaround - blacklist usblp module (if you don't need it for other printers) by creating a file /etc/modprobe.d/usblp-blacklist.conf containing:
+
+    blacklist usblp
+
+If the modules is already loaded, unload it:
+
+    $ sudo rmmod usblp
+
+Another workaround is to set printer URI to the usblp device, e.g. "file:///dev/usb/lp0".
 For this to work, file: device URIs must be enabled in CUPS configuration:
 (/etc/cups/cups-files.conf)
 
@@ -67,7 +76,9 @@ You need to restart CUPS then:
 Multiple USB printers
 ---------------------
 
-If you have multiple USB printers, the usblp devices might be assigned differently on each boot or hot-plug. To avoid this, you can create an udev rule like this (example from Ubuntu 14.04 and Canon D320):
+If you have multiple USB printers, the usblp devices might be assigned differently on each boot or hot-plug.
+To avoid this, you can create an udev rule like this (example from Ubuntu 14.04 and Canon D320),
+e.g. /etc/udev/rules.d/canonD320.rules:
 
     SUBSYSTEMS=="usb", ATTRS{ieee1284_id}=="MFG:Canon;MDL:imageCLASS D300;CLS:PRINTER;DES:Canon imageCLASS D300;CID:;CMD:LIPS;", SYMLINK+="canonD320"
 
