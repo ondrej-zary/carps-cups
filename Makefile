@@ -19,3 +19,4 @@ clean:
 install: rastertocarps
 	install -s rastertocarps $(CUPSDIR)/filter/
 	install -m 644 carps.drv $(CUPSDATADIR)/drv/
+	install -m 644 carps.usb-quirks $(CUPSDATADIR)/usb/

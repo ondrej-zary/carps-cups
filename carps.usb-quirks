@@ -1,0 +1,50 @@
+# CARPS USB backend 'quirks' file.
+#
+# This file enables delay-close workaround for all CARPS printers
+# to prevent "DATA ERROR" problem after printing the first document.
+#
+
+# MF5730
+0x04a9 0x265d delay-close
+
+# MF5750
+0x04a9 0x265e delay-close
+
+# MF5770
+0x04a9 0x265f delay-close
+
+# MF5630
+0x04a9 0x264e delay-close
+
+# MF5650
+0x04a9 0x264f delay-close
+
+# MF3110
+0x04a9 0x2660 delay-close
+
+# imageCLASS D300
+0x04a9 0x262c delay-close
+
+# LASERCLASS 500
+0x04a9 0x2633 delay-close
+
+# FP-L170/MF350/L380/L398
+0x04a9 0x2655 delay-close
+
+# LC310/L390/L408S
+0x04a9 0x268a delay-close
+
+# PC-D300/FAX-L400/ICD300
+0x04a9 0x2634 delay-close
+
+# L180/L380S/L398S
+0x04a9 0x2689 delay-close
+
+# L120
+#unsupported 0x04a9 0x2674 delay-close
+
+# MF3200 Series
+#unsupported 0x04a9 0x2684 delay-close
+
+# MF8100 Series
+#unsupported 0x04a9 0x2659 delay-close

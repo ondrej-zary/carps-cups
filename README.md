@@ -54,7 +54,14 @@ various printers and it's no surprise that it does not work properly with CARPS 
 printer is turned off and on again.
 
 Seems that the printer gets confused by repeated (re)attaching of the usblp module caused by libusb using the same device.
-There's an easy workaround - blacklist usblp module (if you don't need it for other printers) by creating a file /etc/modprobe.d/usblp-blacklist.conf containing:
+
+Since 2018-03-04, this driver installs carps.usb-quirks file that enables "delay-close" workaround in the CUPS libusb backend on all supported CARPS printers.
+
+The following manual workarounds are not needed anymore (but are kept as reference).
+
+Workarounds for CUPS libusb problems (not needed anymore - for reference only)
+------------------------------------------------------------------------------
+Easy workaround - blacklist usblp module (if you don't need it for other printers) by creating a file /etc/modprobe.d/usblp-blacklist.conf containing:
 
     blacklist usblp
 
@@ -73,9 +80,8 @@ You need to restart CUPS then:
     $ sudo service cups restart
 
 
-Multiple USB printers
----------------------
-
+Using file:// workaround with multiple USB printers (not needed anymore - for reference only)
+---------------------------------------------------------------------------------------------
 If you have multiple USB printers, the usblp devices might be assigned differently on each boot or hot-plug.
 To avoid this, you can create an udev rule like this (example from Ubuntu 14.04 and Canon D320),
 e.g. /etc/udev/rules.d/canonD320.rules:
