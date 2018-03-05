@@ -1,50 +1,50 @@
 # CARPS USB backend 'quirks' file.
 #
-# This file enables delay-close workaround for all CARPS printers
+# This file enables no-reattach workaround for all CARPS printers
 # to prevent "DATA ERROR" problem after printing the first document.
 #
 
 # MF5730
-0x04a9 0x265d delay-close
+0x04a9 0x265d no-reattach
 
 # MF5750
-0x04a9 0x265e delay-close
+0x04a9 0x265e no-reattach
 
 # MF5770
-0x04a9 0x265f delay-close
+0x04a9 0x265f no-reattach
 
 # MF5630
-0x04a9 0x264e delay-close
+0x04a9 0x264e no-reattach
 
 # MF5650
-0x04a9 0x264f delay-close
+0x04a9 0x264f no-reattach
 
 # MF3110
-0x04a9 0x2660 delay-close
+0x04a9 0x2660 no-reattach
 
 # imageCLASS D300
-0x04a9 0x262c delay-close
+0x04a9 0x262c no-reattach
 
 # LASERCLASS 500
-0x04a9 0x2633 delay-close
+0x04a9 0x2633 no-reattach
 
 # FP-L170/MF350/L380/L398
-0x04a9 0x2655 delay-close
+0x04a9 0x2655 no-reattach
 
 # LC310/L390/L408S
-0x04a9 0x268a delay-close
+0x04a9 0x268a no-reattach
 
 # PC-D300/FAX-L400/ICD300
-0x04a9 0x2634 delay-close
+0x04a9 0x2634 no-reattach
 
 # L180/L380S/L398S
-0x04a9 0x2689 delay-close
+0x04a9 0x2689 no-reattach
 
 # L120
-#unsupported 0x04a9 0x2674 delay-close
+#unsupported 0x04a9 0x2674 no-reattach
 
 # MF3200 Series
-#unsupported 0x04a9 0x2684 delay-close
+#unsupported 0x04a9 0x2684 no-reattach
 
 # MF8100 Series
-#unsupported 0x04a9 0x2659 delay-close
+#unsupported 0x04a9 0x2659 no-reattach

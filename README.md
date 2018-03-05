@@ -55,7 +55,7 @@ printer is turned off and on again.
 
 Seems that the printer gets confused by repeated (re)attaching of the usblp module caused by libusb using the same device.
 
-Since 2018-03-04, this driver installs carps.usb-quirks file that enables "delay-close" workaround in the CUPS libusb backend on all supported CARPS printers.
+Since 2018-03-04, this driver installs carps.usb-quirks file that enables "no-reattach" workaround in the CUPS libusb backend on all supported CARPS printers.
 
 The following manual workarounds are not needed anymore (but are kept as reference).
 
