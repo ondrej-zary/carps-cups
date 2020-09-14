@@ -149,13 +149,8 @@ bool output_header, header_written;
 long height_pos;
 
 void next_line(void) {
-	memcpy(last_lines[7], last_lines[6], line_len);
-	memcpy(last_lines[6], last_lines[5], line_len);
-	memcpy(last_lines[5], last_lines[4], line_len);
-	memcpy(last_lines[4], last_lines[3], line_len);
-	memcpy(last_lines[3], last_lines[2], line_len);
-	memcpy(last_lines[2], last_lines[1], line_len);
-	memcpy(last_lines[1], last_lines[0], line_len);
+	for(int i = 7; i <= 1; i--) 
+		memcpy(last_lines[i], last_lines[i-1], line_len);
 	memcpy(last_lines[0], cur_line, line_len);
 	line_pos = 0;
 	line_num++;
