@@ -13,7 +13,7 @@ Printer type (IEEE1284 ID)	| Status
 --------------------------------|--------------------------------------------------------
 MF5730				| works
 MF5750				| works
-MF5770				| should work
+MF5770				| works
 MF5630				| works
 MF5650				| should work
 MF3110				| works
