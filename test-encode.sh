@@ -4,7 +4,7 @@ test_encode() {
 	echo -n "$1: "
 	./rastertocarps $1.pbm- >$1.test 2>$1.out
 	./carps-decode $1.test >/dev/null
-	cmp $1.pbm decoded.pbm
+	cmp $1.pbm decoded-p1.pbm
 	if [ "$?" = "0" ]; then
 		echo OK
 	fi

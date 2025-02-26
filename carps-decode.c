@@ -159,7 +159,7 @@ int decode_number(u8 **data, u16 *len, u8 *bitpos) {
 u8 *last_lines[8], *cur_line;
 int out_bytes;
 u16 line_num, line_pos, line_len;
-bool output_header, header_written;
+bool output_header;
 long height_pos;
 
 void next_line(void) {
@@ -231,7 +231,7 @@ void output_previous(int line, int count, FILE *fout) {
 
 #define TMP_BUFLEN 100
 
-int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
+int decode_print_data(u8 *data, u16 len, FILE *f, FILE **fout) {
 	bool in_escape = false;
 	int i;
 	int count;
@@ -239,12 +239,28 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 	u8 dictionary[DICT_SIZE];
 	bool twobyte_flag = false, prev8_flag = false;
 	char tmp[TMP_BUFLEN];
-	int width, height;
+	static int width, page = 1;
+	int height;
+	char filename[30];
 
 	u8 *start = data;
 
 	if (data[0] != 0x01)
 		printf("!!!!!!!!");
+
+	if (len == 2 && data[1] == 0x0c) {
+		printf("end of page\n");
+		/* now we know line count so we can fill it in */
+		if (compression == COMPRESS_CANON && output_header) {
+			fseek(*fout, height_pos, SEEK_SET);
+			fprintf(*fout, "%4d", line_num);
+		}
+		fclose(*fout);
+		*fout = NULL;
+		page++;
+		line_num = 0;
+		return 0;
+	}
 
 	for (i = 1; i < len; i++) {
 		if (data[i] == ESC) {	/* escape sequence begin */
@@ -280,21 +296,33 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 			cur_line = realloc(cur_line, line_len);
 			for (int i = 0; i < 8; i++)
 				last_lines[i] = realloc(last_lines[i], line_len);
-
-			if (output_header && !header_written) {
-				fprintf(fout, "P4\n%d ", line_len * 8);
-				height_pos = ftell(fout);
-				fprintf(fout, "%4d\n", 0); /* we don't know height yet */
-				header_written = true;
-			}
 		}
 	}
 
 	data += i;
 	len -= i;
+
+	if (!*fout && len > 0) {
+		snprintf(filename, sizeof(filename), "decoded-p%d.%s", page, (compression == COMPRESS_CANON) ? "pbm" : "g4");
+		printf("\ncreating output file %s", filename);
+		if (compression == COMPRESS_G4)
+			printf(" - use 'fax2tiff -4 -8 -X %d %s -o decoded-p%d.tiff' to convert", width, filename, page);
+		printf("\n");
+		*fout = fopen(filename, "w");
+		if (!*fout) {
+			perror("Unable to open output file");
+			return 2;
+		}
+		if (compression == COMPRESS_CANON && output_header) {
+			fprintf(*fout, "P4\n%d ", line_len * 8);
+			height_pos = ftell(*fout);
+			fprintf(*fout, "%4d\n", 0); /* we don't know height yet */
+		}
+	}
+
 	if (compression == COMPRESS_G4 && len > 0) {
 		printf("%d bytes of G4 data\n", len);
-		fwrite(data, 1, len, fout);
+		fwrite(data, 1, len, *fout);
 		return 0;
 	}
 	if (len < sizeof(struct carps_print_header)) {
@@ -358,7 +386,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 							switch (bits) {
 							case 0b01:
 								printf("zero byte\n");
-								output_byte(0, dictionary, fout);
+								output_byte(0, dictionary, *fout);
 								break;
 							case 0b00:
 								count = decode_number(&data, &len, &bitpos);
@@ -379,13 +407,13 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 					} else { /* 11110 */
 						count = decode_number(&data, &len, &bitpos);
 						printf("%d bytes from this line [@-80]\n", count);
-						output_bytes_last(count, 80, fout);
+						output_bytes_last(count, 80, *fout);
 					}
 					break;
 				case 0b01: /* 1101 */
 					bits = get_bits(&data, &len, &bitpos, 8);
 					printf("byte immediate 0b%s\n", bin_n(bits, 8));
-					output_byte(bits, dictionary, fout);
+					output_byte(bits, dictionary, *fout);
 					break;
 				case 0b00: /* 1100 */
 					go_backward(1, &data, &len, &bitpos);
@@ -395,7 +423,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				case 0b10: /* 1110 */
 					count = decode_number(&data, &len, &bitpos);
 					printf("%d last bytes (+%d)\n", count + base, base);
-					output_bytes_last(count + base, twobyte_flag ? 2 : 1, fout);
+					output_bytes_last(count + base, twobyte_flag ? 2 : 1, *fout);
 					base = 0;
 					break;
 				}
@@ -403,12 +431,12 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 				/* DICTIONARY */
 				bits = get_bits(&data, &len, &bitpos, 4);
 				printf("[%d] byte from dictionary\n", (~bits & 0b1111));
-				output_byte(dictionary[(~bits & 0b1111)], dictionary, fout);
+				output_byte(dictionary[(~bits & 0b1111)], dictionary, *fout);
 			}
 		} else { /* 0 */
 			count = decode_number(&data, &len, &bitpos);
 			printf("%d bytes from previous line (+%d)\n", count + base, base);
-			output_previous(prev8_flag ? 7 : 3, count + base, fout);
+			output_previous(prev8_flag ? 7 : 3, count + base, *fout);
 			base = 0;
 		}
 	}
@@ -428,6 +456,7 @@ int main(int argc, char *argv[]) {
 	u8 *data = buf + sizeof(struct carps_header);
 	int ret;
 	u16 len;
+	FILE *fout = NULL;
 
 	if (argc < 2) {
 		usage();
@@ -438,11 +467,7 @@ int main(int argc, char *argv[]) {
 		perror("Unable to open file");
 		return 2;
 	}
-	FILE *fout = fopen("decoded.pbm", "w");
-	if (!fout) {
-		perror("Unable to open output file");
-		return 2;
-	}
+
 	if (argc > 2 && !strcmp(argv[2], "--header"))
 		output_header = true;
 
@@ -585,7 +610,7 @@ int main(int argc, char *argv[]) {
 			break;
 		case CARPS_BLOCK_PRINT:
 			printf("PRINT DATA 0x%02x ", data[0]);
-			decode_print_data(data, len, f, fout);
+			decode_print_data(data, len, f, &fout);
 			break;
 		default:
 			printf("UNKNOWN BLOCK 0x%02x !!!!!!!!\n", header->block_type);
@@ -594,17 +619,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	/* now we know line count so we can fill it in */
-	if (output_header) {
-		fseek(fout, height_pos, SEEK_SET);
-		fprintf(fout, "%4d", line_num);
-	}
-
 	free(cur_line);
 	for (int i = 0; i < 8; i++)
 		free(last_lines[i]);
 
-	fclose(fout);
 	fclose(f);
 	return 0;
 }
