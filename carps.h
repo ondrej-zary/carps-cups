@@ -57,6 +57,7 @@ struct carps_header {
 #define CARPS_BLOCK_PARAMS	0x18
 #define CARPS_BLOCK_END2	0x19
 #define CARPS_BLOCK_PRINT	0x1a
+#define CARPS_BLOCK_DOC_INFO_NEW	0x6b
 
 struct carps_doc_info {
 	u16 type;
@@ -66,6 +67,12 @@ struct carps_doc_info {
 #define CARPS_DOC_INFO_TITLE	0x0004
 #define CARPS_DOC_INFO_USER	0x0006
 #define CARPS_DOC_INFO_TIME	0x0009
+
+struct carps_doc_info_new {
+	u16 type;
+	u16 data_len;
+	u8 data[];
+} __attribute__((packed));
 
 struct carps_time {
 	u16 type;	/* 0x0009 */

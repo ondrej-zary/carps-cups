@@ -33,6 +33,19 @@ void dump_data(u8 *data, u16 len) {
 	printf("\n");
 }
 
+void print_time(struct carps_time *time) {
+	char *weekday[] = { "", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
+	printf("Time: %04d-%02d-%02d (%s) %02d:%02d:%02d.%d\n",
+		(time->year << 4) | (time->year_month >> 4),
+		time->year_month & 0x0f,
+		time->day >> 3,
+		weekday[time->day & 0x7],
+		time->hour,
+		time->min,
+		time->sec_msec >> 2,
+		((time->sec_msec & 0x3) << 8) | time->msec);
+}
+
 long block_pos;
 
 #define NO_HEADER	(1 << 0)
@@ -403,7 +416,6 @@ int main(int argc, char *argv[]) {
 	u8 *data = buf + sizeof(struct carps_header);
 	int ret;
 	u16 len;
-	char *weekday[] = { "", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" };
 
 	if (argc < 2) {
 		usage();
@@ -440,7 +452,6 @@ int main(int argc, char *argv[]) {
 		}
 		case CARPS_BLOCK_DOC_INFO: {
 			struct carps_doc_info *info = (void *)data;
-			struct carps_time *time;
 			printf("DOCUMENT INFORMATION: ");
 			u16 type = be16_to_cpu(info->type);
 			u16 unknown = be16_to_cpu(info->unknown);
@@ -458,20 +469,50 @@ int main(int argc, char *argv[]) {
 				printf("User: '%s'\n", data + sizeof(struct carps_doc_info));
 				break;
 			case CARPS_DOC_INFO_TIME:
-				time = (void *)data;
-				printf("Time: %04d-%02d-%02d (%s) %02d:%02d:%02d.%d\n",
-					(time->year << 4) | (time->year_month >> 4),
-					time->year_month & 0x0f,
-					time->day >> 3,
-					weekday[time->day & 0x7],
-					time->hour,
-					time->min,
-					time->sec_msec >> 2,
-					((time->sec_msec & 0x3) << 8) | time->msec);
+				print_time((void *)data);
 				break;
 			default:
 				printf("Unknown: type=0x%x, unknown=0x%x, data_len=0x%x\n", type, unknown, info->data_len);
 				break;
+			}
+			break;
+		}
+		case CARPS_BLOCK_DOC_INFO_NEW: {
+			printf("DOCUMENT INFORMATION (NEW TYPE): ");
+			u16 record_count = be16_to_cpu(*(u16 *)data);
+			printf("%d records\n", record_count);
+			u8 *record = data + 2;
+			for (int i = 0; i < record_count; i++) {
+				printf(" #%d: ", i + 1);
+				struct carps_doc_info_new *info = (void *)record;
+				u16 type = be16_to_cpu(info->type);
+				u16 data_len = be16_to_cpu(info->data_len);
+				switch (type) {
+					case CARPS_DOC_INFO_TITLE: {
+						u16 unknown = be16_to_cpu(*(u16 *)info->data);
+						if (unknown != 0x11)
+							printf("!!!!!!!! ");
+						record[sizeof(struct carps_doc_info_new) + info->data_len + 3] = '\x0';
+						printf("Title: '%s'\n", record + sizeof(struct carps_doc_info_new) + 3);
+						break;
+					}
+					case CARPS_DOC_INFO_USER: {
+						u16 unknown = be16_to_cpu(*(u16 *)info->data);
+						if (unknown != 0x11)
+							printf("!!!!!!!! ");
+						record[sizeof(struct carps_doc_info_new) + info->data_len + 3] = '\x0';
+						printf("User: '%s'\n", record + sizeof(struct carps_doc_info_new) + 3);
+						break;
+					}
+					case CARPS_DOC_INFO_TIME:
+						print_time((void *)info->data - 2);
+						break;
+					default:
+						printf("Unknown: type=0x%x, data_len=0x%x: ", type, data_len);
+						dump_data(info->data, data_len);
+						break;
+				}
+				record += sizeof(struct carps_doc_info_new) + data_len;
 			}
 			break;
 		}
