@@ -135,6 +135,11 @@ enum carps_paper_size {
 	PAPER_CUSTOM	= 80,
 };
 
+enum carps_compression {
+	COMPRESS_CANON	= 15,
+	COMPRESS_G4	= 16,
+};
+
 const char *bin_n(u16 x, u8 n) {
 	static char b[9];
 	b[0] = '\0';

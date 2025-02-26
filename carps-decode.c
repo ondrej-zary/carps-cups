@@ -47,6 +47,7 @@ void print_time(struct carps_time *time) {
 }
 
 long block_pos;
+enum carps_compression compression = COMPRESS_CANON;
 
 #define NO_HEADER	(1 << 0)
 int get_block(u8 *buf, FILE *f, int flags) {
@@ -242,8 +243,6 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 
 	u8 *start = data;
 
-	memset(dictionary, 0xaa, DICT_SIZE);
-
 	if (data[0] != 0x01)
 		printf("!!!!!!!!");
 
@@ -269,28 +268,41 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE *fout) {
 		}
 		strncpy(tmp, (char *)data + 3, i);
 		tmp[i] = '\0';
-		sscanf(tmp, ";%d;%d;", &width, &height);
-		printf("width=%d, height=%d\n", width, height);
-		line_len = ROUND_UP_MULTIPLE(DIV_ROUND_UP(width, 8), 4);
-		printf("line_len=%d\n", line_len);
-		cur_line = realloc(cur_line, line_len);
-		for (int i = 0; i < 8; i++)
-			last_lines[i] = realloc(last_lines[i], line_len);
+		int comp;
+		sscanf(tmp, ";%d;%d;%d.", &width, &height, &comp);
+		printf(" width=%d, height=%d, compression=%d\n", width, height, comp);
+		if (comp != COMPRESS_CANON && comp != COMPRESS_G4)
+			printf("UNKNOWN COMPRESSION TYPE!!!!!!!!\n");
+		compression = comp;
+		if (compression == COMPRESS_CANON) {
+			line_len = ROUND_UP_MULTIPLE(DIV_ROUND_UP(width, 8), 4);
+			printf("line_len=%d\n", line_len);
+			cur_line = realloc(cur_line, line_len);
+			for (int i = 0; i < 8; i++)
+				last_lines[i] = realloc(last_lines[i], line_len);
 
-		if (output_header && !header_written) {
-			fprintf(fout, "P4\n%d ", line_len * 8);
-			height_pos = ftell(fout);
-			fprintf(fout, "%4d\n", 0); /* we don't know height yet */
-			header_written = true;
+			if (output_header && !header_written) {
+				fprintf(fout, "P4\n%d ", line_len * 8);
+				height_pos = ftell(fout);
+				fprintf(fout, "%4d\n", 0); /* we don't know height yet */
+				header_written = true;
+			}
 		}
 	}
 
 	data += i;
 	len -= i;
+	if (compression == COMPRESS_G4 && len > 0) {
+		printf("%d bytes of G4 data\n", len);
+		fwrite(data, 1, len, fout);
+		return 0;
+	}
 	if (len < sizeof(struct carps_print_header)) {
 		printf("\n");
 		return -1;
 	}
+
+	memset(dictionary, 0xaa, DICT_SIZE);
 
 	struct carps_print_header *header = (void *)data;
 	if (header->one != 0x01 || header->two != 0x02 || header->four != 0x04 || header->eight != 0x08 || header->zero1 != 0x0000 || header->magic != 0x50
@@ -572,7 +584,7 @@ int main(int argc, char *argv[]) {
 			printf("\n");
 			break;
 		case CARPS_BLOCK_PRINT:
-			printf("PRINT DATA 0x%02x", data[0]);
+			printf("PRINT DATA 0x%02x ", data[0]);
 			decode_print_data(data, len, f, fout);
 			break;
 		default:
