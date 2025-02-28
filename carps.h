@@ -75,7 +75,6 @@ struct carps_doc_info_new {
 } __attribute__((packed));
 
 struct carps_time {
-	u16 type;	/* 0x0009 */
 	u8 year;
 	u8 year_month;
 	u8 day;

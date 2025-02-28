@@ -506,7 +506,7 @@ int main(int argc, char *argv[]) {
 				printf("User: '%s'\n", data + sizeof(struct carps_doc_info));
 				break;
 			case CARPS_DOC_INFO_TIME:
-				print_time((void *)data);
+				print_time((void *)data + 2);
 				break;
 			default:
 				printf("Unknown: type=0x%x, unknown=0x%x, data_len=0x%x\n", type, unknown, info->data_len);
@@ -542,7 +542,7 @@ int main(int argc, char *argv[]) {
 						break;
 					}
 					case CARPS_DOC_INFO_TIME:
-						print_time((void *)info->data - 2);
+						print_time((void *)info->data);
 						break;
 					default:
 						printf("Unknown: type=0x%x, data_len=0x%x: ", type, data_len);

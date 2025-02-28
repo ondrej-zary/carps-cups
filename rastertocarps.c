@@ -621,9 +621,9 @@ int main(int argc, char *argv[]) {
 	/* document info - time */
 	time_t timestamp = time(NULL);
 	struct tm *tm = gmtime(&timestamp);
-	doc_time = (void *)buf;
+	info->type = cpu_to_be16(CARPS_DOC_INFO_TIME);
+	doc_time = (void *)buf + 2;
 	memset(doc_time, 0, sizeof(struct carps_time));
-	doc_time->type = cpu_to_be16(CARPS_DOC_INFO_TIME);
 	if (!pbm_mode) {
 		doc_time->year = (1900 + tm->tm_year) >> 4;
 		doc_time->year_month = ((1900 + tm->tm_year) << 4) | (tm->tm_mon + 1);
@@ -637,7 +637,7 @@ int main(int argc, char *argv[]) {
 		/* But we use this for test purposes so the output file does not change with time */
 		doc_time->day = 7;
 	}
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_time), stdout);
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_time) + 2, stdout);
 	/* begin 1 */
 	memset(buf, 0, 4);
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN1, buf, 4, stdout);
