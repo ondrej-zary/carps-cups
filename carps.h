@@ -1,7 +1,9 @@
 /* CUPS driver for Canon CARPS printers */
 /* Copyright (c) 2014 Ondrej Zary */
-#define u8 unsigned char
-#define u16 unsigned short
+#include <stdint.h>
+#define u8 uint8_t
+#define u16 uint16_t
+#define u32 uint32_t
 
 #define POINTS_PER_INCH 72
 
