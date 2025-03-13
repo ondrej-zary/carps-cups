@@ -496,6 +496,103 @@ void fill_print_data_header(char *buf, unsigned int copies, unsigned int dpi, un
 	strcat(buf, tmp);
 }
 
+void fill_doc_time(struct carps_time *doc_time, struct tm *tm) {
+	doc_time->year = (1900 + tm->tm_year) >> 4;
+	doc_time->year_month = ((1900 + tm->tm_year) << 4) | (tm->tm_mon + 1);
+	doc_time->day = (tm->tm_mday << 3) | tm->tm_wday;
+	doc_time->hour = tm->tm_hour;
+	doc_time->min = tm->tm_min;
+	doc_time->sec_msec = tm->tm_sec << 2;
+}
+
+void write_doc_info(char *buf, char *doc_title, char *user_name, time_t timestamp) {
+	struct carps_doc_info *info = (void *)buf;
+	struct carps_time *doc_time;
+	/* document beginning */
+	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
+	/* document info - title */
+	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
+	info->unknown = cpu_to_be16(0x11);
+	info->data_len = strlen(doc_title) > 255 ? 255 : strlen(doc_title);
+	strncpy(buf + sizeof(struct carps_doc_info), doc_title, 255);
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(doc_title), stdout);
+	/* document info - user name */
+	info->type = cpu_to_be16(CARPS_DOC_INFO_USER);
+	info->unknown = cpu_to_be16(0x11);
+	info->data_len = strlen(user_name) > 255 ? 255 : strlen(user_name);
+	strncpy(buf + sizeof(struct carps_doc_info), user_name, 255);
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(user_name), stdout);
+	/* document info - time */
+	struct tm *tm = gmtime(&timestamp);
+	info->type = cpu_to_be16(CARPS_DOC_INFO_TIME);
+	doc_time = (void *)buf + 2;
+	memset(doc_time, 0, sizeof(struct carps_time));
+	if (timestamp)
+		fill_doc_time(doc_time, tm);
+	else {
+		/* MF5730 driver does not fill the time data, maybe because of a bug? */
+		/* Printer accepts data with time so we always fill it in. */
+		/* But we use this for test purposes so the output file does not change with time */
+		doc_time->day = 7;
+	}
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_time) + 2, stdout);
+}
+
+void write_doc_info_new(char *buf, char *doc_title, char *user_name, time_t timestamp) {
+	char *ptr = buf;
+	struct carps_doc_info_new *info;
+	struct carps_time *doc_time;
+	int len;
+	/* 4 records */
+	u16 *record_count = (void *)ptr;
+	*record_count = cpu_to_be16(4);
+	ptr += 2;
+	/* unknown record */
+	info = (void *)ptr;
+	info->type = cpu_to_be16(0xf0);
+	info->data_len = cpu_to_be16(1);
+	info->data[0] = 0x01;
+	ptr += sizeof(struct carps_doc_info_new) + 1;
+	/* document info - title */
+	info = (void *)ptr;
+	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
+	len = strlen(doc_title) > 255 ? 255 : strlen(doc_title);
+	info->data_len = cpu_to_be16(len + 3);
+	info->data[0] = 0;
+	info->data[1] = 0x11;
+	info->data[2] = len;
+	strncpy((void *)&info->data[3], doc_title, 255);
+	ptr += sizeof(struct carps_doc_info_new) + 3 + len;
+	/* document info - user name */
+	info = (void *)ptr;
+	info->type = cpu_to_be16(CARPS_DOC_INFO_USER);
+	len = strlen(user_name) > 255 ? 255 : strlen(user_name);
+	info->data_len = cpu_to_be16(len + 3);
+	info->data[0] = 0;
+	info->data[1] = 0x11;
+	info->data[2] = len;
+	strncpy((void *)&info->data[3], user_name, 255);
+	ptr += sizeof(struct carps_doc_info_new) + 3 + len;
+	/* document info - time */
+	info = (void *)ptr;
+	info->type = cpu_to_be16(CARPS_DOC_INFO_TIME);
+	info->data_len = cpu_to_be16(sizeof(struct carps_time));
+	struct tm *tm = gmtime(&timestamp);
+	doc_time = (void *)info->data;
+	memset(doc_time, 0, sizeof(struct carps_time));
+	if (timestamp)
+		fill_doc_time(doc_time, tm);
+	else {
+		/* MF5730 driver does not fill the time data, maybe because of a bug? */
+		/* Printer accepts data with time so we always fill it in. */
+		/* But we use this for test purposes so the output file does not change with time */
+		doc_time->day = 7;
+	}
+	ptr += sizeof(struct carps_doc_info_new) + sizeof(struct carps_time);
+	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO_NEW, buf, ptr - buf, stdout);
+}
+
 char *ppd_get(ppd_file_t *ppd, const char *name) {
 	ppd_attr_t *attr = ppdFindAttr(ppd, name, NULL);
 
@@ -505,15 +602,13 @@ char *ppd_get(ppd_file_t *ppd, const char *name) {
 		ppd_choice_t *choice;
 		choice = ppdFindMarkedChoice(ppd, name);
 		if (!choice)
-			return NULL;
+			return "";
 		return choice->choice;
 	}
 }
 
 int main(int argc, char *argv[]) {
 	char buf[BUF_SIZE];
-	struct carps_doc_info *info;
-	struct carps_time *doc_time;
 	struct carps_print_params params;
 	char tmp[100];
 #ifdef PBM
@@ -528,6 +623,7 @@ int main(int argc, char *argv[]) {
 	int fd;
 	ppd_file_t *ppd;
 	bool header_written = false;
+	bool new_doc_info = false;
 #ifdef PBM
 	if (argc < 2 || argc == 3 || argc == 4 || argc == 5 || argc > 7) {
 		fprintf(stderr, "usage: rastertocarps <file.pbm>\n");
@@ -589,55 +685,17 @@ int main(int argc, char *argv[]) {
 		n = cupsParseOptions(argv[5], 0, &options);
 		cupsMarkOptions(ppd, n, options);
 		cupsFreeOptions(n, options);
+
+		char *value = ppd_get(ppd, "NewDocInfo");
+		if (!strcmp(value, "1"))
+			new_doc_info = true;
 	}
 
-	/* document beginning */
-	u8 begin_data[] = { 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN, begin_data, sizeof(begin_data), stdout);
-	/* document info - title */
-	char *doc_title;
-	if (pbm_mode)
-		doc_title = "Untitled";
+	if (new_doc_info)
+		write_doc_info_new(buf, pbm_mode ? "Untitled" : argv[3], pbm_mode ? "root" : argv[2], pbm_mode ? 0 : time(NULL));
 	else
-		doc_title = argv[3];
-	info = (void *)buf;
-	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
-	info->unknown = cpu_to_be16(0x11);
-	info->data_len = strlen(doc_title) > 255 ? 255 : strlen(doc_title);
-	strncpy(buf + sizeof(struct carps_doc_info), doc_title, 255);
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(doc_title), stdout);
-	/* document info - user name */
-	char *user_name;
-	if (pbm_mode)
-		user_name = "root";
-	else
-		user_name = argv[2];
-	info = (void *)buf;
-	info->type = cpu_to_be16(CARPS_DOC_INFO_USER);
-	info->unknown = cpu_to_be16(0x11);
-	info->data_len = strlen(user_name) > 255 ? 255 : strlen(user_name);
-	strncpy(buf + sizeof(struct carps_doc_info), user_name, 255);
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_doc_info) + strlen(user_name), stdout);
-	/* document info - time */
-	time_t timestamp = time(NULL);
-	struct tm *tm = gmtime(&timestamp);
-	info->type = cpu_to_be16(CARPS_DOC_INFO_TIME);
-	doc_time = (void *)buf + 2;
-	memset(doc_time, 0, sizeof(struct carps_time));
-	if (!pbm_mode) {
-		doc_time->year = (1900 + tm->tm_year) >> 4;
-		doc_time->year_month = ((1900 + tm->tm_year) << 4) | (tm->tm_mon + 1);
-		doc_time->day = (tm->tm_mday << 3) | tm->tm_wday;
-		doc_time->hour = tm->tm_hour;
-		doc_time->min = tm->tm_min;
-		doc_time->sec_msec = tm->tm_sec << 2;
-	} else {
-		/* MF5730 driver does not fill the time data, maybe because of a bug? */
-		/* Printer accepts data with time so we always fill it in. */
-		/* But we use this for test purposes so the output file does not change with time */
-		doc_time->day = 7;
-	}
-	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_DOC_INFO, buf, sizeof(struct carps_time) + 2, stdout);
+		write_doc_info(buf, pbm_mode ? "Untitled" : argv[3], pbm_mode ? "root" : argv[2], pbm_mode ? 0 : time(NULL));
+
 	/* begin 1 */
 	memset(buf, 0, 4);
 	write_block(CARPS_DATA_CONTROL, CARPS_BLOCK_BEGIN1, buf, 4, stdout);
