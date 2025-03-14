@@ -376,10 +376,9 @@ u16 encode_print_data(int *num_lines, bool last, FILE *f, cups_raster_t *ras, ch
 
 int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	int num_lines = 65536 / line_len;
-	int ofs;
 	bool last = false;
-	char buf[BUF_SIZE], buf2[BUF_SIZE];
-	char *buf_pos;
+	char buf[BUF_SIZE + 1];
+	char header[MAX_DATA_LEN];
 
 	if (num_lines > height) {
 		DBG("num_lines := %d\n", height);
@@ -387,11 +386,11 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 		last = true;
 	}
 	/* encode print data first as we need the length and line count */
-	u16 len = encode_print_data(&num_lines, last, f, ras, buf2);
+	u16 len = encode_print_data(&num_lines, last, f, ras, buf);
 	/* strip header */
-	ofs = sprintf(buf, "\x01\x1b[;%d;%d;15.P", width, num_lines);
+	u16 headers_len = sprintf(header, "\x01\x1b[;%d;%d;15.P", width, num_lines);
 	/* print data header */
-	struct carps_print_header *ph = (void *)buf + ofs;
+	struct carps_print_header *ph = (void *)header + headers_len;
 	memset(ph, 0, sizeof(struct carps_print_header));
 	ph->one = 0x01;
 	ph->two = 0x02;
@@ -400,19 +399,19 @@ int encode_print_block(int height, FILE *f, cups_raster_t *ras) {
 	ph->magic = 0x50;
 	ph->last = last ? 0 : 1;
 	ph->data_len = cpu_to_le16(len);
-	/* copy print data after the headers */
-	memcpy(buf + ofs + sizeof(struct carps_print_header), buf2, len);
-	len = ofs + sizeof(struct carps_print_header) + len;
-	buf[len++] = 0x80;	/* strip data end */
+	headers_len += sizeof(struct carps_print_header);
+	buf[len++] = 0x80;	/* add strip data end marker */
 
-	if (len <= MAX_DATA_LEN)
-		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, len, stdout);
-	else {
-		/* write strip header + print data header separately */
-		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, ofs + sizeof(struct carps_print_header), stdout);
-		buf_pos = buf;
-		buf_pos += ofs + sizeof(struct carps_print_header);
-		len -= ofs + sizeof(struct carps_print_header);
+	if (headers_len + len <= MAX_DATA_LEN) {
+		/* write headers and print data in one block */
+		memcpy(header + headers_len, buf, len);
+		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, header, headers_len + len, stdout);
+	} else {
+		/* write headers as a separate block */
+		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, header, headers_len, stdout);
+		/* make space for the first 0x01 byte that will be inserted */
+		char *buf_pos = buf + 1;
+		memmove(buf_pos, buf, len);
 		/* then write data blocks at most MAX_BLOCK_LEN bytes long */
 		while (len) {
 			/* insert 0x01 byte at the beginning of each continuing block */
