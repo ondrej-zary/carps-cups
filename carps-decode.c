@@ -233,6 +233,7 @@ void output_previous(int line, int count, FILE *fout) {
 
 int decode_print_data(u8 *data, u16 len, FILE *f, FILE **fout) {
 	bool in_escape = false;
+	static bool start_of_strip = true;
 	int i;
 	int count;
 	int base = 0;
@@ -250,6 +251,7 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE **fout) {
 
 	if (len == 2 && data[1] == 0x0c) {
 		printf("end of page\n");
+		start_of_strip = true;
 		/* now we know line count so we can fill it in */
 		if (compression == COMPRESS_CANON && output_header) {
 			fseek(*fout, height_pos, SEEK_SET);
@@ -262,7 +264,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE **fout) {
 		return 0;
 	}
 
-	for (i = 1; i < len; i++) {
+	/* read and display escape sequences at start of strip */
+	for (i = 1; start_of_strip && i < len; i++) {
 		if (data[i] == ESC) {	/* escape sequence begin */
 			if (in_escape)
 				printf("\n");
@@ -319,6 +322,9 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE **fout) {
 			fprintf(*fout, "%4d\n", 0); /* we don't know height yet */
 		}
 	}
+
+	if (len > 0)
+		start_of_strip = false;
 
 	if (compression == COMPRESS_G4 && len > 0) {
 		printf("%d bytes of G4 data\n", len);
@@ -394,7 +400,8 @@ int decode_print_data(u8 *data, u16 len, FILE *f, FILE **fout) {
 								base = count * 128;
 								break;
 							case 0b10:
-								printf("block end marker\n");
+								printf("strip end marker\n");
+								start_of_strip = true;
 								return 0;
 							default:
 								printf("!!!!!!!! 0b%s\n", bin_n(bits, 2));
