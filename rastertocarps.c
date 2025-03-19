@@ -443,7 +443,7 @@ u32 encode_print_data_g4(FILE *f, cups_raster_t *ras, char *out) {
 	return g4.pos;
 }
 
-int encode_print_block(int height, FILE *f, cups_raster_t *ras, enum carps_compression compression) {
+int encode_strip(int height, FILE *f, cups_raster_t *ras, enum carps_compression compression) {
 	int num_lines = height;
 	int headers_len;
 	char *buf;
@@ -851,9 +851,9 @@ int main(int argc, char *argv[]) {
 				header_written = true;
 			}
 
-			/* read raster data */
+			/* encode print data in strips */
 			while (height > 0)
-				height -= encode_print_block(height, NULL, ras, compression);
+				height -= encode_strip(height, NULL, ras, compression);
 			/* end of page */
 			u8 page_end[] = { 0x01, 0x0c };
 			write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
@@ -862,9 +862,9 @@ int main(int argc, char *argv[]) {
 		/* print data header */
 		fill_print_data_header(buf, 1, 600, WEIGHT_PLAIN, "A4", 0, 0, COMPRESS_CANON);	/* 1 copy, 600 dpi, plain paper, A4 */
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
-		/* print data */
+		/* encode print data in strips */
 		while (!feof(f) && height > 0)
-			height -= encode_print_block(height, f, NULL, compression);
+			height -= encode_strip(height, f, NULL, compression);
 		/* end of page */
 		u8 page_end[] = { 0x01, 0x0c };
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
