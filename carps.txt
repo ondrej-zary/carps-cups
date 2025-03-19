@@ -67,8 +67,11 @@ PRINT DATA structure:
 ---------------------
 all print data is in blocks with data type 0x02, block type 0x1a
 
-each page begins with a header (first page has header in separate block, others don't (?)), such as:
+each page begins with a header (first page has header in separate block, others don't (?)), such as (first page):
 \x01.%@.P42;600;1J;ImgColor.\.[11h.[?7;600 I.[20't.[14;;;;;;p.[?2h.[1v.[600;1;0;32;;64;0'c
+
+or (next pages):
+\x01.11h.[?7;600 I.[600;1;0;32;;64;0'c
 
 (for readability, \x1b (ESCAPE) characters were replaced by full stop '.' characters)
 
