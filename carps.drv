@@ -105,17 +105,22 @@ Throughput 18
 	PCFileName "l180.ppd"
 }
 
-/* not supported:
 {
+	Attribute Compression "" "G4"
 	Throughput 13
 	ModelName "L120"
 	PCFileName "l120.ppd"
 }
+
 {
+	Attribute Compression "" "G4"
+	Attribute NewDocInfo "" 1
 	Throughput 21
 	ModelName "MF3200 Series"
 	PCFileName "mf3200.ppd"
 }
+
+/* not supported:
 {
 	Throughput 4
 	ModelName "MF8100 Series"
