@@ -5,31 +5,31 @@ This provides rastertocups filter and PPD files (specified by carps.drv file) wh
 allows these printers to print from Linux and possibly any other OS where CUPS is used.
 
 carps-decode is a debug tool - it decodes CARPS data (created either by rastertocups
-filter or windows drivers), producing a PBM bitmap and debug output.
+filter or windows drivers), producing a PBM bitmap (or raw G4 data) and debug output.
 
 Printers known to use CARPS data format:
 
-Printer type (IEEE1284 ID)	| Status
+Printer type (IEEE1284 ID)	| Compression	| Status
 --------------------------------|--------------------------------------------------------
-MF5730				| works
-MF5750				| works
-MF5770				| works
-MF5630				| works
-MF5650				| should work
-MF3110				| works
-imageCLASS D300			| works
-LASERCLASS 500			| should work
-FP-L170/MF350/L380/L398		| should work
-LC310/L390/L408S		| works
-PC-D300/FAX-L400/ICD300		| works
-L180/L380S/L398S		| works
-L120				| not supported - different data format
-MF3200 Series			| not supported - different data format, different header
-MF8100 Series			| not supported - different data format, color
+MF5730				| Canon		| works
+MF5750				| Canon		| works
+MF5770				| Canon		| works
+MF5630				| Canon		| works
+MF5650				| Canon		| should work
+MF3110				| Canon		| works
+imageCLASS D300			| Canon		| works
+LASERCLASS 500			| Canon		| should work
+FP-L170/MF350/L380/L398		| Canon		| should work
+LC310/L390/L408S		| Canon		| works
+PC-D300/FAX-L400/ICD300		| Canon		| works
+L180/L380S/L398S		| Canon		| works
+L120				| G4		| works
+MF3200 Series			| G4		| should work, new-style header
+MF8100 Series			| ?		| not supported - different data format, color
 
 Compiling from source
 ---------------------
-Requirements: make, gcc, libcups2-dev, libcupsimage2-dev, cups-ppdc
+Requirements: make, gcc, libcups2-dev, libcupsimage2-dev, cups-ppdc, libtiff-dev
 
 To compile, simply run "make":
 
