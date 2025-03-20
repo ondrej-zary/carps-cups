@@ -443,13 +443,20 @@ u32 encode_print_data_g4(FILE *f, cups_raster_t *ras, char *out) {
 	return g4.pos;
 }
 
-int encode_strip(int height, FILE *f, cups_raster_t *ras, enum carps_compression compression) {
+int encode_strip(int page, int height, FILE *f, cups_raster_t *ras, enum carps_compression compression) {
 	int num_lines = height;
-	int headers_len;
+	int headers_len = 1;
 	char *buf;
 	char header[MAX_DATA_LEN];
 	u32 len;
+	static int cur_page = 1;
 
+	header[0] = 0x01;
+	/* add page header at start of each page (except the first one) */
+	if (page != cur_page) {
+		cur_page = page;
+		headers_len += sprintf(header + headers_len, "\x1b[11h\x1b[?7;%d I\x1b[%d;1;0;%d;;%d;0'c", dpi, dpi, (compression == COMPRESS_G4) ? 256 : 32, (compression == COMPRESS_G4) ? 0 : 64);
+	}
 	/* encode print data first as we need the length and line count */
 	if (compression == COMPRESS_G4) {
 		/* compress entire page into a single strip */
@@ -461,7 +468,7 @@ int encode_strip(int height, FILE *f, cups_raster_t *ras, enum carps_compression
 		}
 		len = encode_print_data_g4(f, ras, buf);
 		/* strip header */
-		headers_len = sprintf(header, "\x01\x1b[;%d;%d;16.P", width, height);
+		headers_len += sprintf(header + headers_len, "\x1b[;%d;%d;16.P", width, height);
 	} else {
 		/* compress only as much lines as fits into BUF_SIZE */
 		buf = malloc(BUF_SIZE + 1);
@@ -478,7 +485,7 @@ int encode_strip(int height, FILE *f, cups_raster_t *ras, enum carps_compression
 		}
 		len = encode_print_data_canon(&num_lines, last, f, ras, buf);
 		/* strip header */
-		headers_len = sprintf(header, "\x01\x1b[;%d;%d;15.P", width, num_lines);
+		headers_len += sprintf(header + headers_len, "\x1b[;%d;%d;15.P", width, num_lines);
 		/* print data header */
 		struct carps_print_header *ph = (void *)header + headers_len;
 		memset(ph, 0, sizeof(struct carps_print_header));
@@ -851,7 +858,7 @@ int main(int argc, char *argv[]) {
 
 			/* encode print data in strips */
 			while (height > 0)
-				height -= encode_strip(height, NULL, ras, compression);
+				height -= encode_strip(page, height, NULL, ras, compression);
 			/* end of page */
 			u8 page_end[] = { 0x01, 0x0c };
 			write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
@@ -862,7 +869,7 @@ int main(int argc, char *argv[]) {
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, buf, strlen(buf), stdout);
 		/* encode print data in strips */
 		while (!feof(f) && height > 0)
-			height -= encode_strip(height, f, NULL, compression);
+			height -= encode_strip(1, height, f, NULL, compression);
 		/* end of page */
 		u8 page_end[] = { 0x01, 0x0c };
 		write_block(CARPS_DATA_PRINT, CARPS_BLOCK_PRINT, page_end, sizeof(page_end), stdout);
