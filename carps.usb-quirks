@@ -41,10 +41,10 @@
 0x04a9 0x2689 no-reattach
 
 # L120
-#unsupported 0x04a9 0x2674 no-reattach
+0x04a9 0x2674 no-reattach
 
 # MF3200 Series
-#unsupported 0x04a9 0x2684 no-reattach
+0x04a9 0x2684 no-reattach
 
 # MF8100 Series
 #unsupported 0x04a9 0x2659 no-reattach
