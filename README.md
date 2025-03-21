@@ -10,7 +10,7 @@ filter or windows drivers), producing a PBM bitmap (or raw G4 data) and debug ou
 Printers known to use CARPS data format:
 
 Printer type (IEEE1284 ID)	| Compression	| Status
---------------------------------|--------------------------------------------------------
+--------------------------------|---------------|----------------------------------------
 MF5730				| Canon		| works
 MF5750				| Canon		| works
 MF5770				| Canon		| works
