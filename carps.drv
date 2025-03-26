@@ -37,8 +37,8 @@ Option "ImageRefinement/Image Refinement" Boolean AnySetup 10
 	*Choice "ON/On" ""
 
 Option "TonerSave/Toner Save" PickOne AnySetup 10
-	*Choice "DEFAULT/Use Printer Default" ""
-	Choice "OFF/Off" ""
+	Choice "DEFAULT/Use Printer Default" ""
+	*Choice "OFF/Off" ""
 	Choice "ON/On" ""
 
 Throughput 20
