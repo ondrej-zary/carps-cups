@@ -656,22 +656,22 @@ void write_doc_info_new(char *buf, char *doc_title, char *user_name, time_t time
 	/* document info - title */
 	info = (void *)ptr;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_TITLE);
-	len = strlen(doc_title) > 255 ? 255 : strlen(doc_title);
+	len = strlen(doc_title) > 32 ? 32 : strlen(doc_title);
 	info->data_len = cpu_to_be16(len + 3);
 	info->data[0] = 0;
 	info->data[1] = 0x11;
 	info->data[2] = len;
-	strncpy((void *)&info->data[3], doc_title, 255);
+	strncpy((void *)&info->data[3], doc_title, 32);
 	ptr += sizeof(struct carps_doc_info_new) + 3 + len;
 	/* document info - user name */
 	info = (void *)ptr;
 	info->type = cpu_to_be16(CARPS_DOC_INFO_USER);
-	len = strlen(user_name) > 255 ? 255 : strlen(user_name);
+	len = strlen(user_name) > 55 ? 55 : strlen(user_name);
 	info->data_len = cpu_to_be16(len + 3);
 	info->data[0] = 0;
 	info->data[1] = 0x11;
 	info->data[2] = len;
-	strncpy((void *)&info->data[3], user_name, 255);
+	strncpy((void *)&info->data[3], user_name, 55);
 	ptr += sizeof(struct carps_doc_info_new) + 3 + len;
 	/* document info - time */
 	info = (void *)ptr;
