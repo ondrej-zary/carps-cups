@@ -150,7 +150,7 @@ void dict_add(u8 byte, u8 *dict) {
 	dict[0] = byte;
 }
 
-int fls(unsigned int n) {
+int carps_fls(unsigned int n) {
 	int i = 0;
 
 	while (n >>= 1)
@@ -174,7 +174,7 @@ int encode_number(char **data, u16 *len, u8 *bitpos, int num) {
 		return 2;
 	}
 
-	num_bits = fls(num);
+	num_bits = carps_fls(num);
 	DBG("num_bits=%d\n", num_bits);
 	if (num_bits == 1) {
 		put_bits(data, len, bitpos, 2, 0b01);
